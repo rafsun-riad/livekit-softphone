@@ -642,9 +642,18 @@ JWT dependency rule:
 
 - Create backend project with `uv`
 - Pin the backend interpreter with a project `.python-version` file to uv-managed `cpython@3.14`
+- Establish a project rule that every project-owned Django model uses a UUID primary key rather than an integer auto field
 - Configure settings split
 - Configure ASGI immediately
 - Add DRF, JWT, Channels, and PostgreSQL before any app code
+
+### 10.4 Primary key standard for Django models
+
+- Every project-owned Django model must use a UUID primary key.
+- Do not rely on Django 6's default `BigAutoField` for application models in this project.
+- Declare UUID primary keys explicitly, for example with `UUIDField(primary_key=True, default=uuid.uuid4, editable=False)`.
+- Apply this rule consistently to current and future project models such as user, contact, device, call, call event, and any later telephony-provider models.
+- If implementation convenience is needed, use an abstract base model for shared UUID and timestamp behavior.
 
 ## 11. PostgreSQL Setup
 
@@ -919,6 +928,13 @@ sequenceDiagram
 - backend needs it for join responses and operational consistency
 - mobile needs a public configurable URL
 - both should point to the same environment-specific LiveKit instance
+
+### 16.8 Current development LiveKit host
+
+- Current development LiveKit host: `ws://202.51.182.173`
+- Use this only for development while LiveKit is hosted by IP address.
+- Treat this value as temporary and configurable. Do not hardcode it in the app.
+- When LiveKit moves to production, replace it with the production server URL behind dedicated DNS, and prefer `wss://` in production.
 
 ## 17. Call State Machine
 
@@ -1256,7 +1272,7 @@ Use Expo standard environment variables with `EXPO_PUBLIC_` prefix for values us
 ```env
 EXPO_PUBLIC_API_URL=https://api-softphone.example.com
 EXPO_PUBLIC_WS_URL=wss://api-softphone.example.com
-EXPO_PUBLIC_LIVEKIT_URL=wss://livekit.example.com
+EXPO_PUBLIC_LIVEKIT_URL=ws://202.51.182.173
 EXPO_PUBLIC_APP_ENV=development
 ```
 
@@ -1303,6 +1319,11 @@ FCM_PROJECT_ID=change-me
 FCM_CLIENT_EMAIL=change-me
 FCM_PRIVATE_KEY=change-me
 ```
+
+Development note:
+
+- For the current development environment, `LIVEKIT_URL` and `EXPO_PUBLIC_LIVEKIT_URL` should point to `ws://202.51.182.173`.
+- When LiveKit is moved to production, switch both values to the production host with DNS and prefer `wss://`.
 
 Cloudflare Tunnel note:
 
@@ -1470,12 +1491,14 @@ Native full-screen incoming call UI is required on Android, but the React Native
 
 ### 27.2 Contact
 
+- UUID primary key
 - directional relationship
 - unique owner + contact_user
 - future-ready status field
 
 ### 27.3 Device / PushDevice
 
+- UUID primary key
 - user
 - platform
 - push provider type
@@ -1506,11 +1529,18 @@ Native full-screen incoming call UI is required on Android, but the React Native
 
 ### 27.5 CallEvent
 
+- UUID primary key
 - call
 - event_type
 - actor_user optional
 - payload JSON
 - created_at
+
+### 27.6 Primary key rule summary
+
+- Every project-owned Django model in this codebase uses a UUID primary key.
+- This rule applies to all current models and any future models added later.
+- Endpoint contracts, serializers, query filters, and mobile types should all assume UUID identifiers.
 
 ## 28. REST Endpoints Summary
 
