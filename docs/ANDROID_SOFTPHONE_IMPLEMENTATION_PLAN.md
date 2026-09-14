@@ -84,7 +84,8 @@ The implementation must begin with environment verification and a focused compat
 - LiveKit is the media plane.
 - WebSocket is the realtime signaling and state-delivery path.
 - REST is the primary mutation and data-fetching path.
-- Cloudflare Tunnel exposes Django over a stable public HTTPS and WSS hostname so the app can run on arbitrary devices outside the local network.
+- During development, Cloudflare Tunnel exposes Django over a temporary but stable public HTTPS and WSS hostname so the app can be tested on arbitrary devices outside the local network.
+- In production, Django is hosted on a VPS behind a dedicated DNS hostname rather than behind the development Cloudflare Tunnel.
 - Mobile never receives LiveKit API secret.
 - Mobile is provider-agnostic at the API level.
 - Backend chooses and authorizes the media provider.
@@ -93,7 +94,7 @@ The implementation must begin with environment verification and a focused compat
 
 ```mermaid
 flowchart LR
-  A[Android App\nExpo React Native] -->|HTTPS| T[Cloudflare Tunnel]
+  A[Android App\nExpo React Native] -->|HTTPS| T[Cloudflare Tunnel\nDevelopment Only]
   A -->|WSS| T
   T --> B[Django REST API]
   T --> C[Django WebSocket\nChannels]
@@ -439,6 +440,66 @@ Use a real Android device for the first serious native compatibility test:
 cd mobile
 npx expo run:android --device
 ```
+
+This is the primary development workflow for installing the app over a USB cable on your real Android phone.
+
+### 6.6 Real Android phone install and APK workflow
+
+#### Development build installed over USB
+
+Use this as the default day-to-day workflow:
+
+```bash
+adb devices
+cd mobile
+npx expo run:android --device
+```
+
+What this gives you:
+
+- a development build installed directly on the connected Android phone through USB
+- native module support for LiveKit, Firebase Messaging, CallKeep, and Notifee
+- fast iteration after initial native build
+
+Device setup requirements:
+
+- enable Developer Options on the Android phone
+- enable USB debugging
+- authorize the machine when Android prompts for USB debugging trust
+- verify the device appears in `adb devices`
+
+#### Explicit APK generation for USB installation
+
+When you want a concrete APK artifact during development, generate it from the Android project after prebuild:
+
+```bash
+cd mobile
+npx expo prebuild --platform android
+cd android
+./gradlew assembleDebug
+```
+
+Expected debug APK path:
+
+```text
+mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Install the APK over USB:
+
+```bash
+adb install -r mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Use cases for the APK workflow:
+
+- validating that a standalone debug APK installs correctly on the phone
+- reinstalling quickly without re-running the full Expo device picker flow
+- sharing the exact artifact path during debugging
+
+#### Optional preview APK workflow
+
+If later you need a cleaner APK artifact for broader internal testing, add an EAS preview profile that outputs an APK. This is not required for the first implementation phase, because the USB-installed local development build is enough for initial Android development.
 
 Use `npx expo prebuild --clean` only when:
 
@@ -1199,7 +1260,11 @@ EXPO_PUBLIC_LIVEKIT_URL=wss://livekit.example.com
 EXPO_PUBLIC_APP_ENV=development
 ```
 
-For non-LAN device testing, point the API and WebSocket origins to a stable Cloudflare Tunnel hostname instead of a local IP.
+For non-LAN device testing during development, point the API and WebSocket origins to a stable Cloudflare Tunnel hostname instead of a local IP.
+
+Production rule:
+
+- In production, point these values to the VPS-hosted Django domain with dedicated DNS.
 
 ### 23.3 Mobile rules
 
@@ -1243,6 +1308,8 @@ Cloudflare Tunnel note:
 
 - Use a named tunnel with a stable hostname for shared device testing.
 - Do not build the mobile app around an ephemeral temporary tunnel hostname.
+- Treat the Cloudflare Tunnel as a development-only transport layer.
+- In production, host Django on the VPS behind a dedicated DNS record and update mobile environment values accordingly.
 - Keep LiveKit on its own stable public URL unless there is a separate explicit plan to proxy it.
 
 ### 23.5 Configuration-management rule
@@ -1336,7 +1403,37 @@ Do not request everything on first launch.
 - Use gluestack theme tokens and NativeWind utilities to keep spacing, typography, color, and component states consistent.
 - Prefer a clean professional visual system over generic boilerplate mobile screens.
 
-### 26.3 Navigation structure
+### 26.3 App branding and asset customization plan
+
+The app must keep splash and icon assets easy to replace without restructuring the project.
+
+Branding asset plan:
+
+- keep app branding assets under a dedicated mobile assets folder such as `mobile/assets/branding/`
+- separate source assets from generated app icons if later automation is added
+- keep a square master logo source asset that can be reused for launcher icon, adaptive icon foreground, splash branding, and store listings
+
+Recommended asset set:
+
+- `mobile/assets/branding/app-logo.png`
+- `mobile/assets/branding/app-logo-adaptive-foreground.png`
+- `mobile/assets/branding/app-logo-adaptive-monochrome.png` if Android monochrome icon support is used
+- `mobile/assets/branding/splash-logo.png`
+- `mobile/assets/branding/splash-background.png` only if a custom illustrated splash is desired
+
+Configuration plan:
+
+- manage app icon and splash configuration in `mobile/app.config.ts`
+- configure standard app icon, Android adaptive icon, splash image, splash background color, and dark-mode variants there if needed
+- keep colors and asset paths centralized so branding can be changed by replacing files and adjusting config values, not by editing many screens
+
+Development guide:
+
+- after changing app icon or splash assets, regenerate the native config with `npx expo prebuild --clean` if required
+- rebuild the Android app with `npx expo run:android --device` or with the APK workflow so the updated native assets are included
+- document the currently active brand assets in `docs/IMPLEMENTATION_SO_FAR.md` when branding changes are made during implementation
+
+### 26.4 Navigation structure
 
 ```text
 src/app/
@@ -1357,7 +1454,7 @@ src/app/
       video.tsx
 ```
 
-### 26.4 UX rule
+### 26.5 UX rule
 
 Native full-screen incoming call UI is required on Android, but the React Native incoming-call screen still exists as the app-level fallback or post-foreground experience.
 
@@ -1653,8 +1750,8 @@ Two physical Android devices are required for final signoff of the full-screen i
 ### Phase 2: Mobile Foundation
 
 - Objective: Expo dev build, gluestack, NativeWind, base providers
-- Output: working Android development build with UI baseline
-- Exit criteria: app compiles and launches on Android device
+- Output: working Android development build with UI baseline, branding asset configuration path, and real-device USB install workflow
+- Exit criteria: app compiles, installs over USB on a real Android device, and launches with the configured base assets
 
 ### Phase 3: Native Calling Foundation
 
@@ -1749,6 +1846,8 @@ The MVP is done only when all are true:
 - Secrets are not exposed in the mobile client.
 - API, WS, and LiveKit URLs are configurable.
 - The Cloudflare Tunnel hostname works correctly for REST and WebSocket access from external devices.
+- The app can be installed on a real Android device over USB using the documented development-build or APK workflow.
+- Splash screen and app logo assets are configurable through documented asset paths and app config.
 - `docs/IMPLEMENTATION_SO_FAR.md` and `docs/REMAINING_IMPLEMENTATION.md` are maintained during execution.
 - The project can be built from a clean environment using documented steps.
 
