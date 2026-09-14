@@ -22,7 +22,7 @@ Reference plan:
 1. Review and approve `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md`.
 2. Verify environment readiness on the development machine.
 3. Install uv-managed CPython 3.14.
-4. Decide whether Android builds run successfully on Java 25 or should temporarily use Java 17.
+4. Decide whether Android builds run successfully on Java 25 or should temporarily use Java 21 which is already installed along with 17.
 5. Bootstrap the `mobile/` and `backend/` projects.
 
 ## Remaining Phases
