@@ -41,3 +41,4 @@ uv run python manage.py check
 - Implementation log: `docs/IMPLEMENTATION_SO_FAR.md`
 - Remaining work tracker: `docs/REMAINING_IMPLEMENTATION.md`
 - Firebase setup guide: `docs/FIREBASE_CLOUD_MESSAGING_SETUP.md`
+- Mobile USB build guide: `docs/MOBILE_USB_BUILD_AND_RUN_GUIDE.md`

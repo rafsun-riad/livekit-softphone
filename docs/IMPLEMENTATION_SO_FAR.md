@@ -99,6 +99,7 @@ Files created or updated:
 - `mobile/` Expo project scaffold
 - `backend/` Django project scaffold
 - `docs/FIREBASE_CLOUD_MESSAGING_SETUP.md`
+- `docs/MOBILE_USB_BUILD_AND_RUN_GUIDE.md`
 
 Decisions made:
 
@@ -129,6 +130,7 @@ Completed items:
 - Added a dedicated branding asset structure under `mobile/assets/branding/`.
 - Moved Expo configuration into `mobile/app.config.ts`.
 - Generated the Android native project with `expo prebuild` and verified Gradle and Java runtime.
+- Added a step-by-step USB build and real-device run guide for the mobile app.
 
 Commands run:
 
