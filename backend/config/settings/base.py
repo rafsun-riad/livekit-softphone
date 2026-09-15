@@ -38,6 +38,10 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "channels",
+    "apps.accounts",
+    "apps.contacts",
+    "apps.devices",
+    "apps.calls",
 ]
 
 MIDDLEWARE = [
@@ -82,6 +86,8 @@ DATABASES = {
     }
 }
 
+AUTH_USER_MODEL = "accounts.User"
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
@@ -111,6 +117,8 @@ SIMPLE_JWT = {
         minutes=int(os.getenv("JWT_ACCESS_TOKEN_LIFETIME", "15"))
     ),
 }
+
+DEVICE_SESSION_ROTATION = env_bool("DEVICE_SESSION_ROTATION", True)
 
 CHANNEL_LAYER_BACKEND = os.getenv("CHANNEL_LAYER_BACKEND", "inmemory")
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")

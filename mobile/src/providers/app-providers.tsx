@@ -1,0 +1,34 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PropsWithChildren } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
+
+type AppProvidersProps = PropsWithChildren<{
+  colorMode?: "light" | "dark" | "system";
+}>;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    mutations: {
+      retry: false,
+    },
+    queries: {
+      retry: false,
+      staleTime: 30_000,
+    },
+  },
+});
+
+export function AppProviders({
+  children,
+  colorMode = "dark",
+}: AppProvidersProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <GluestackUIProvider mode={colorMode}>{children}</GluestackUIProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
+  );
+}

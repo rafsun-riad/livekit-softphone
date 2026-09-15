@@ -1,17 +1,22 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
 
+import "@/global.css";
+import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
+
 export default function App() {
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <Text style={styles.eyebrow}>LiveKit Softphone</Text>
-      <Text style={styles.title}>Android-first MVP bootstrap</Text>
-      <Text style={styles.body}>
-        Mobile and backend scaffolds are in place. Next steps are router setup,
-        auth foundation, and native calling integrations.
-      </Text>
-    </View>
+    <GluestackUIProvider mode="dark">
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <Text style={styles.eyebrow}>LiveKit Softphone</Text>
+        <Text style={styles.title}>Android-first MVP bootstrap</Text>
+        <Text style={styles.body}>
+          Mobile and backend scaffolds are in place. Next steps are router
+          setup, auth foundation, and native calling integrations.
+        </Text>
+      </View>
+    </GluestackUIProvider>
   );
 }
 

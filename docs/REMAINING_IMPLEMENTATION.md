@@ -17,14 +17,16 @@ Reference plan:
 - Phase 0 is complete.
 - Phase 1 is complete.
 - Phase 2 is in progress.
+- Phase 4 is complete.
+- Phase 5 is in progress.
 
 ## Next Immediate Actions
 
-1. Wire Expo Router as the mobile entry architecture and add the first app layout files.
-2. Add gluestack UI v5 and NativeWind v5.
-3. Run the first Android native development build check.
-4. Create the PostgreSQL database and backend `.env` file.
-5. Start the backend settings, app, and model foundation for accounts, contacts, devices, and calls.
+1. Run the first real-device Android install and development build check.
+2. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
+3. Start Phase 6 with user search, contacts list, and contact creation endpoints.
+4. Add mobile feature modules for contacts and authenticated profile state.
+5. Prepare the WebSocket singleton path for Phase 7.
 
 ## Remaining Phases
 
@@ -63,12 +65,9 @@ Status: In progress
 
 Remaining tasks:
 
-- Wire Expo Router as the actual app entrypoint.
-- Install gluestack UI v5 and NativeWind v5.
-- Configure icon library and fonts.
-- Define splash and app-logo asset structure.
 - Confirm real Android phone installation over USB.
 - Confirm debug APK generation path and install workflow.
+- Confirm the generated Android project installs and launches on a real device.
 
 Dependencies:
 
@@ -92,14 +91,11 @@ Dependencies:
 
 ### Phase 4: Backend Foundation
 
-Status: Pending
+Status: Complete
 
 Remaining tasks:
 
-- Create Django settings split.
-- Configure PostgreSQL.
-- Add custom user model.
-- Add ASGI, Channels, and base apps.
+- None.
 
 Dependencies:
 
@@ -111,9 +107,10 @@ Status: Pending
 
 Remaining tasks:
 
-- Validate SimpleJWT compatibility on Python 3.14 + Django 6.0 + DRF 3.18.
-- If compatible, implement auth flow.
-- If not compatible, stop and revise the auth dependency choice.
+- Add any missing authentication edge-case tests.
+- Add `useAPI.ts` or equivalent shared API abstraction on top of the current client.
+- Add mobile auth UX polish for loading, empty, and failure states.
+- Verify the secure session flow on a real Android device.
 
 Dependencies:
 
@@ -139,7 +136,7 @@ Dependencies:
 
 ## Active Blockers
 
-- No active blockers, but Android build validation has not started yet.
+- Android build validation has not started yet.
 
 ## Risks To Re-check During Execution
 
@@ -153,7 +150,7 @@ Dependencies:
 - Whether Java 25 is fully usable for the Android build path.
 - Whether a preview APK profile is needed beyond the direct USB development-build workflow.
 - Whether additional theming variants are needed for the splash and launcher assets.
-- Whether Expo Router should live under `app/` immediately or be introduced together with the planned `src/app/` structure.
+- Whether to keep the current root `app/` Expo Router structure or later move routes under `src/app/`.
 
 ## Last Updated
 
