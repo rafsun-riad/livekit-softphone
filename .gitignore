@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Expo
+.expo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Expo generated native folders
+mobile/android/
+mobile/ios/
+
+# OS and editor noise
+.DS_Store

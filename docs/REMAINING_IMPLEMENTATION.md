@@ -14,29 +14,28 @@ Reference plan:
 
 ## Current Overall State
 
-- Implementation has not started yet.
-- All planned phases remain pending.
+- Phase 0 is complete.
+- Phase 1 is complete.
+- Phase 2 is in progress.
 
 ## Next Immediate Actions
 
-1. Review and approve `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md`.
-2. Verify environment readiness on the development machine.
-3. Install uv-managed CPython 3.14.
-4. Decide whether Android builds run successfully on Java 25 or should temporarily use Java 21 which is already installed along with 17.
-5. Bootstrap the `mobile/` and `backend/` projects.
+1. Wire Expo Router as the mobile entry architecture and add the first app layout files.
+2. Add gluestack UI v5 and NativeWind v5.
+3. Run the first Android native development build check.
+4. Create the PostgreSQL database and backend `.env` file.
+5. Start the backend settings, app, and model foundation for accounts, contacts, devices, and calls.
 
 ## Remaining Phases
 
 ### Phase 0: Environment Verification
 
-Status: Pending
+Status: Complete
 
 Remaining tasks:
 
-- Verify Node, npm, Java, adb, uv, Python, and PostgreSQL.
-- Install JDK 25 if desired target runtime is not already present.
-- Install uv-managed CPython 3.14.
-- Confirm Android SDK and real-device USB debugging workflow.
+- Install JDK 25 if desired target runtime is still required before native Android build validation.
+- Confirm real-device USB debugging workflow during the first Android install.
 
 Dependencies:
 
@@ -48,13 +47,11 @@ Known risks:
 
 ### Phase 1: Repository Bootstrap
 
-Status: Pending
+Status: Complete
 
 Remaining tasks:
 
-- Scaffold `mobile/` with Expo.
-- Scaffold `backend/` with Django and uv.
-- Add repository hygiene files.
+- None.
 
 Dependencies:
 
@@ -62,11 +59,11 @@ Dependencies:
 
 ### Phase 2: Mobile Foundation
 
-Status: Pending
+Status: In progress
 
 Remaining tasks:
 
-- Configure Expo development build.
+- Wire Expo Router as the actual app entrypoint.
 - Install gluestack UI v5 and NativeWind v5.
 - Configure icon library and fonts.
 - Define splash and app-logo asset structure.
@@ -142,7 +139,7 @@ Dependencies:
 
 ## Active Blockers
 
-- No active implementation blockers yet.
+- No active blockers, but Android build validation has not started yet.
 
 ## Risks To Re-check During Execution
 
@@ -156,8 +153,9 @@ Dependencies:
 - Whether Java 25 is fully usable for the Android build path.
 - Whether a preview APK profile is needed beyond the direct USB development-build workflow.
 - Whether additional theming variants are needed for the splash and launcher assets.
+- Whether Expo Router should live under `app/` immediately or be introduced together with the planned `src/app/` structure.
 
 ## Last Updated
 
-- Date: Not updated yet
-- Updated by: Not updated yet
+- Date: 2026-09-15
+- Updated by: GitHub Copilot

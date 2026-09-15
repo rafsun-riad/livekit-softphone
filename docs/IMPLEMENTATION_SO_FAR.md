@@ -1,6 +1,6 @@
 # Implementation So Far
 
-Status: Not started
+Status: In progress
 
 Purpose:
 
@@ -14,94 +14,132 @@ Reference plan:
 
 ## Current Summary
 
-- No implementation work has started yet.
-- The repository currently contains planning documentation only.
+- Phase 0 environment verification is complete.
+- Phase 1 repository bootstrap is complete.
+- Phase 2 mobile foundation has started with the initial Expo native-build dependencies.
 
 ## Completed Phases
 
 ### Phase 0: Environment Verification
 
-Status: Not started
+Status: Complete
 
 Completed items:
 
-- None yet.
+- Verified Node.js, npm, Java, adb, Python, uv, PostgreSQL, and Android SDK presence.
+- Installed uv-managed CPython 3.14.6 for the backend target runtime.
 
 Commands run:
 
-- None yet.
+- `node -v`
+- `npm -v`
+- `java -version`
+- `printf '%s\n' "$JAVA_HOME"`
+- `printf '%s\n' "$ANDROID_HOME"`
+- `adb --version`
+- `python3 --version`
+- `uv --version`
+- `uv python list --only-installed`
+- `psql --version`
+- `uv python install cpython@3.14`
 
 Verified versions and environment notes:
 
-- None recorded yet.
+- Node.js `v24.21.0`
+- npm `11.19.0`
+- Java `21.0.12`
+- `adb` `36.0.0`
+- System Python `3.12.3`
+- `uv` `0.11.28`
+- PostgreSQL client `16.15`
+- Android SDK directory exists at `$HOME/Android/Sdk`
+- uv-managed CPython `3.14.6` installed successfully
 
 Decisions made:
 
-- None yet.
+- Keep the requested backend Python target at `cpython@3.14`.
+- Defer JDK 25 installation until the Android native build path needs it.
 
 Deviations from plan:
 
-- None yet.
+- JDK 25 has not been installed yet because it is not required for the initial repository bootstrap.
 
 Blockers resolved:
 
-- None yet.
+- Backend target Python version is now available locally.
 
 ### Phase 1: Repository Bootstrap
 
-Status: Not started
+Status: Complete
 
 Completed items:
 
-- None yet.
+- Scaffolded the Expo mobile app in `mobile/` using the blank TypeScript template.
+- Installed `expo-dev-client` and `expo-router` into the mobile app.
+- Scaffolded the Django backend in `backend/` with uv-managed dependencies.
+- Added root repository hygiene files and environment examples.
+- Added a minimal backend health endpoint and Django split-settings structure.
+- Added a brief Firebase Cloud Messaging implementation guide.
 
 Commands run:
 
-- None yet.
+- `npx create-expo-app@latest mobile --template blank-typescript`
+- `cd mobile && npx expo install expo-dev-client expo-router`
+- `mkdir -p backend && cd backend && uv init --bare --python 3.14`
+- `cd backend && uv venv --python cpython@3.14 .venv`
+- `cd backend && uv add "django>=6.0,<6.1" "djangorestframework>=3.18,<3.19" "djangorestframework-simplejwt[crypto]" "channels" "uvicorn" "psycopg[binary]" "python-dotenv" "phonenumbers" "livekit-api" "django-cors-headers"`
+- `cd backend && uv run django-admin startproject config .`
 
 Files created or updated:
 
-- None yet.
+- Root `.gitignore`
+- Root `README.md`
+- `mobile/` Expo project scaffold
+- `backend/` Django project scaffold
+- `docs/FIREBASE_CLOUD_MESSAGING_SETUP.md`
 
 Decisions made:
 
-- None yet.
+- Start from the stable Expo blank TypeScript template and add native-build dependencies incrementally.
+- Convert Django to split settings immediately so later phases do not need a structural migration.
 
 Deviations from plan:
 
-- None yet.
+- Expo Router has been installed but not wired as the app entrypoint yet.
 
 Blockers resolved:
 
-- None yet.
+- Resolved the interactive `npx` prompt during Expo project creation.
 
 ### Phase 2: Mobile Foundation
 
-Status: Not started
+Status: In progress
 
 Completed items:
 
-- None yet.
+- Installed `expo-dev-client`.
+- Installed `expo-router`.
+- Replaced the default Expo placeholder screen with a project-specific bootstrap screen.
 
 Commands run:
 
-- None yet.
+- `cd mobile && npx expo install expo-dev-client expo-router`
 
 Device testing notes:
 
-- None yet.
+- Native Android build and real-device install are still pending.
 
 Branding assets configured:
 
-- None yet.
+- Environment example file added for public mobile endpoints.
 
 Decisions made:
 
-- None yet.
+- Keep the initial mobile source surface minimal until Expo Router wiring and provider setup are added together.
 
 Deviations from plan:
 
-- None yet.
+- gluestack UI and NativeWind are still pending.
 
 Blockers resolved:
 
@@ -119,21 +157,25 @@ Notes:
 
 Use this section for cross-phase decisions that affect multiple parts of the project.
 
-- None yet.
+- Backend development settings now live under `config.settings.dev` with a split-settings package.
+- Backend bootstrap uses PostgreSQL-oriented settings from environment variables instead of the Django default SQLite configuration.
 
 ## Commands History Summary
 
 Use this section for high-signal commands worth preserving for future reference.
 
-- None yet.
+- `uv python install cpython@3.14`
+- `npx create-expo-app@latest mobile --template blank-typescript`
+- `cd mobile && npx expo install expo-dev-client expo-router`
+- `cd backend && uv add "django>=6.0,<6.1" "djangorestframework>=3.18,<3.19" "djangorestframework-simplejwt[crypto]" "channels" "uvicorn" "psycopg[binary]" "python-dotenv" "phonenumbers" "livekit-api" "django-cors-headers"`
 
 ## Open Questions Already Answered
 
 Use this section to capture answers that should not be rediscovered later.
 
-- None yet.
+- The requested backend baseline can be installed locally on CPython 3.14 with Django 6.0.8 and DRF 3.18.1.
 
 ## Last Updated
 
-- Date: Not updated yet
-- Updated by: Not updated yet
+- Date: 2026-09-15
+- Updated by: GitHub Copilot
