@@ -684,32 +684,48 @@ Use PostgreSQL for all non-ephemeral application state.
 
 ### 12.1 Auth choice
 
-Use SimpleJWT.
+Use short-lived JWT access tokens plus a backend-managed revocable device session.
+
+SimpleJWT remains the first choice for JWT issuance and validation, but the implementation must not rely on a short fixed refresh-token TTL as the user-facing login boundary.
 
 Compatibility gate:
 
 - Before building the auth feature, install and smoke test SimpleJWT on Python 3.14 + Django 6.0 + DRF 3.18 in the fresh backend environment.
+- If SimpleJWT cannot support the persistent signed-in session requirement cleanly, keep JWT access tokens and add a first-party device-session token exchange layer before proceeding with auth implementation.
 
 ### 12.2 Token policy
 
 - Access token lifetime: 15 minutes
-- Refresh token lifetime: 7 days
-- Refresh rotation: enabled
-- Blacklist app: enabled
+- Device session lifetime: no forced time-based logout for MVP; the session remains valid until manual logout, explicit server-side revocation, or local app data is cleared
+- Device session token rotation: enabled
+- Session revocation or blacklist support: enabled
 
 ### 12.3 Why this policy
 
 - short access token limits damage from compromise
-- refresh rotation improves mobile session safety
-- blacklist gives a real logout path for refresh tokens
+- persistent device session matches the product requirement that a user stays signed in after phone-number login until they explicitly log out or clear app data
+- session-token rotation improves mobile session safety while still allowing indefinite signed-in use on the same device
+- revocation and blacklist support give a real logout path for compromised device sessions
 
-### 12.4 Mobile storage
+### 12.4 Session persistence decision
 
-- Persist access and refresh tokens in `expo-secure-store`
+- Logging in with phone number and password should create a long-lived device session.
+- The app must silently refresh access tokens as needed without forcing the user to log in again during normal use.
+- Access-token expiry alone must never be treated as a reason to log the user out.
+- The user should only be forced to log in again after one of these events:
+  - the user manually logs out from the app
+  - the user clears app data or uninstalls the app
+  - the backend explicitly revokes that device session for security or administrative reasons
+- Backend auth design must therefore distinguish between short-lived access tokens and the longer-lived device session that keeps the user signed in.
+
+### 12.5 Mobile storage
+
+- Persist the access token and device session token in `expo-secure-store`
 - Mirror active values in Zustand for in-memory access
+- Treat `expo-secure-store` as the durable holder of the signed-in session across app restarts
 - Never store in AsyncStorage
 
-### 12.5 Auth flow diagram
+### 12.6 Auth flow diagram
 
 ```mermaid
 sequenceDiagram
@@ -718,12 +734,19 @@ sequenceDiagram
     M->>D: POST /api/auth/register/
     D-->>M: account created
     M->>D: POST /api/auth/login/
-    D-->>M: access + refresh tokens
+    D-->>M: access token + device session token
     M->>D: Authenticated API calls with Bearer access token
     D-->>M: 200 or 401
-    M->>D: POST /api/auth/refresh/ when access expired
-    D-->>M: new access token
+    M->>D: POST /api/auth/refresh/ with device session token when access expires
+    D->>D: Validate active device session and rotate token if configured
+    D-->>M: new access token + rotated device session token
 ```
+
+### 12.7 Session revocation model
+
+- Model signed-in persistence as a revocable device session, not as a short fixed-duration login.
+- Keep server-side ability to revoke a specific device session on logout, suspected compromise, password reset, or administrative action.
+- When a refresh attempt fails because the device session is revoked or invalid, only then clear local auth state and require login again.
 
 ## 13. User and Account Design
 
@@ -1017,21 +1040,23 @@ Only Django may advance canonical call state.
 
 - auth required: no
 - request: phone number, password
-- response: access token, refresh token, user summary
+- response: access token, device session token, user summary
 - validation: normalized phone lookup, password check
+- behavior: creates or updates a durable device session so the user remains signed in until manual logout, app-data clear, or explicit revocation
 
 #### `POST /api/auth/refresh/`
 
 - auth required: no
-- request: refresh token
-- response: new access token, possibly rotated refresh token
+- request: device session token
+- response: new access token, plus rotated device session token when rotation is enabled
+- behavior: refreshes the short-lived access token without interrupting the signed-in session during ordinary app use
 
 #### `POST /api/auth/logout/`
 
 - auth required: yes
-- request: refresh token
+- request: current device session token
 - response: success
-- behavior: blacklist refresh token
+- behavior: revoke or blacklist the current device session token so this device must log in again
 
 ### 18.4 User endpoints
 
@@ -1162,7 +1187,7 @@ TanStack Query hooks
 - parse JSON
 - normalize errors
 - support cancellation with `AbortController`
-- on 401, attempt one refresh then retry once
+- on 401, attempt one silent refresh against the persisted device session then retry once
 
 ### 19.3 Responsibilities that do not belong there
 
@@ -1205,7 +1230,7 @@ src/
 ### 20.3 Lifecycle rule
 
 - On logout: disconnect socket
-- On token refresh failure: disconnect and clear auth state
+- On device-session refresh failure caused by revocation or invalid session: disconnect and clear auth state
 - On app foreground: reconnect if session is valid
 
 ## 21. TanStack Query Architecture
@@ -1245,6 +1270,7 @@ src/
 
 - bootstrapped auth session state
 - in-memory tokens
+- durable signed-in session metadata needed to restore login state on app launch
 - app bootstrap status
 - single active call UI state
 - pending incoming call intent
@@ -1303,7 +1329,7 @@ DATABASE_HOST=127.0.0.1
 DATABASE_PORT=5432
 
 JWT_ACCESS_TOKEN_LIFETIME=15
-JWT_REFRESH_TOKEN_LIFETIME=10080
+DEVICE_SESSION_ROTATION=True
 
 LIVEKIT_URL=wss://livekit.example.com
 LIVEKIT_API_KEY=change-me
@@ -1345,8 +1371,10 @@ Cloudflare Tunnel note:
 
 - passwords hashed by Django
 - short-lived access tokens
-- rotated refresh tokens
-- refresh blacklist on logout
+- revocable device session tokens stored durably on the client and revocable on the server
+- session-token rotation on refresh
+- persistent device session remains active until logout, local data clear, or explicit revocation
+- session revocation or blacklist on logout
 - no provider secrets in mobile app
 - room join always authorized by backend
 - WebSocket auth required
@@ -1496,7 +1524,19 @@ Native full-screen incoming call UI is required on Android, but the React Native
 - unique owner + contact_user
 - future-ready status field
 
-### 27.3 Device / PushDevice
+### 27.3 AuthSession / DeviceSession
+
+- UUID primary key
+- user
+- device optional FK or device fingerprint linkage
+- hashed session token or opaque token identifier
+- created_at
+- last_used_at
+- rotated_at
+- revoked_at optional
+- revoke_reason optional
+
+### 27.4 Device / PushDevice
 
 - UUID primary key
 - user
@@ -1509,7 +1549,7 @@ Native full-screen incoming call UI is required on Android, but the React Native
 - is_active
 - invalidated_at optional
 
-### 27.4 Call
+### 27.5 Call
 
 - UUID primary key
 - initiator
@@ -1527,7 +1567,7 @@ Native full-screen incoming call UI is required on Android, but the React Native
 - created_at
 - updated_at
 
-### 27.5 CallEvent
+### 27.6 CallEvent
 
 - UUID primary key
 - call
@@ -1536,7 +1576,7 @@ Native full-screen incoming call UI is required on Android, but the React Native
 - payload JSON
 - created_at
 
-### 27.6 Primary key rule summary
+### 27.7 Primary key rule summary
 
 - Every project-owned Django model in this codebase uses a UUID primary key.
 - This rule applies to all current models and any future models added later.
@@ -1684,7 +1724,8 @@ Handle cleanly:
 
 - invalid login
 - expired access token
-- invalid refresh token
+- invalid device session token
+- revoked device session requiring re-login
 - unauthorized call attempt
 - duplicate contact
 - duplicate active call
@@ -1720,7 +1761,8 @@ User-facing errors should be actionable and not leak internals.
 - custom user normalization tests
 - registration tests
 - login and refresh tests
-- logout blacklist tests
+- logout session revocation tests
+- persistent session tests confirming a user stays logged in across app restarts until logout or revocation
 - search permission tests
 - contact creation and duplicate tests
 - unauthorized call creation tests
@@ -1734,6 +1776,7 @@ User-facing errors should be actionable and not leak internals.
 
 - auth store hydration tests
 - token refresh handling tests
+- session persistence tests covering cold start without requiring login again
 - API client error normalization tests
 - socket reconnect tests
 - event subscription cleanup tests
@@ -1798,8 +1841,8 @@ Two physical Android devices are required for final signoff of the full-screen i
 ### Phase 5: Authentication
 
 - Objective: register, login, refresh, logout, secure token storage
-- Output: end-to-end mobile auth flow
-- Exit criteria: access and refresh work correctly and the selected JWT package is proven stable on Python 3.14 + Django 6.0
+- Output: end-to-end mobile auth flow with persistent signed-in device sessions
+- Exit criteria: access-token refresh works silently, the user remains signed in across app restarts until logout or revocation, and the selected JWT package is proven stable on Python 3.14 + Django 6.0
 
 ### Phase 6: Contacts and Search
 
@@ -1853,6 +1896,7 @@ The MVP is done only when all are true:
 - User B can register.
 - Both can log in.
 - JWT authentication works.
+- A logged-in user stays signed in across app restarts and is not logged out automatically unless they manually log out, clear app data, or the backend revokes the device session.
 - API requests are authenticated.
 - WebSocket authentication works.
 - A can search for B.
