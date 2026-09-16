@@ -23,11 +23,11 @@ Reference plan:
 
 ## Next Immediate Actions
 
-1. Complete the in-app hardware validation flow by signing in on the installed Android app, granting notification permission, and running Settings push sync.
-2. Verify the mobile push-registration flow on hardware so the backend device UUID appears in Settings and can be used with `send_test_push` or discovered with `list_devices`.
-3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
-4. Expand the contacts and directory UX on mobile and validate it on device.
-5. Prepare the WebSocket singleton path for Phase 7.
+1. Manually validate the new call lifecycle end to end across two signed-in devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout paths.
+2. Replace the current media-authorization call screens with fully wired LiveKit room connection and rendering on device.
+3. Add dedicated backend call tests and mobile call-flow tests for the newly implemented signaling and call state surfaces.
+4. Finish the native Android incoming-call layer with CallKeep and Notifee for full-screen background and terminated handling.
+5. Harden the websocket and reconnect path under real token expiry and network loss conditions.
 
 ## Remaining Phases
 
@@ -81,7 +81,6 @@ Status: Pending
 Remaining tasks:
 
 - Integrate LiveKit native dependencies.
-- Complete Firebase project, Android app registration, and config-file setup before wiring FCM delivery.
 - Extend the new Firebase Messaging foundation from token registration into foreground/background call-intent handling.
 - Integrate CallKeep.
 - Integrate Notifee.
@@ -144,11 +143,9 @@ Status: Pending
 
 Remaining tasks:
 
-- WebSocket and presence
-- LiveKit join flow
-- Audio calling
-- Video calling
-- Background and terminated incoming calls
+- Real-device validation of websocket and presence
+- LiveKit media transport integration inside the active call screens
+- Full incoming-call native Android UX with CallKeep and Notifee
 - Hardening and final verification
 
 Dependencies:
@@ -157,9 +154,7 @@ Dependencies:
 
 ## Active Blockers
 
-- Firebase Android app registration, backend FCM sending, and mobile token-registration code are in place; the remaining blocker is hardware validation of that path.
-- The live database currently has no registered `Device` rows, so `send_test_push` cannot exercise real delivery until a hardware push sync succeeds.
-- The earlier Expo plus React Native Firebase manifest conflict is resolved, and the debug APK now builds and installs successfully; the remaining hardware blocker is in-app sign-in plus successful push sync creating the first `Device` row.
+- Live device registration and backend FCM dry-run validation now work; the remaining blockers are end-to-end multi-device call validation, LiveKit media transport hookup, and native full-screen incoming-call UX.
 
 ## Risks To Re-check During Execution
 

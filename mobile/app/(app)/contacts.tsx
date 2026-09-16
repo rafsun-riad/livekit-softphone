@@ -1,15 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "expo-router";
-import { Trash2, UserRoundSearch } from "lucide-react-native";
+import { Link, router } from "expo-router";
+import { PhoneCall, Trash2, UserRoundSearch, Video } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
+import { createCall } from "@/src/features/calls/api";
+import { buildCallRoute } from "@/src/features/calls/routes";
 import { deleteContact, getContacts } from "@/src/features/contacts/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
 export default function ContactsScreen() {
   const queryClient = useQueryClient();
+  const onlineUsers = useCallStore((state) => state.onlineUsers);
+  const upsertCall = useCallStore((state) => state.upsertCall);
   const contactsQuery = useQuery({
     queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
@@ -19,6 +24,14 @@ export default function ContactsScreen() {
     mutationFn: deleteContact,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+  });
+
+  const callMutation = useMutation({
+    mutationFn: createCall,
+    onSuccess: (call) => {
+      upsertCall(call);
+      router.push(buildCallRoute("outgoing", call.id));
     },
   });
 
@@ -56,6 +69,12 @@ export default function ContactsScreen() {
         </Text>
       ) : null}
 
+      {callMutation.isError ? (
+        <Text style={styles.errorText}>
+          {getAPIErrorMessage(callMutation.error)}
+        </Text>
+      ) : null}
+
       {contactsQuery.isLoading ? (
         <Text style={styles.helperText}>Loading contacts...</Text>
       ) : null}
@@ -72,15 +91,53 @@ export default function ContactsScreen() {
       {contactsQuery.data?.map((contact) => (
         <View key={contact.id} style={styles.contactCard}>
           <View style={styles.contactCopy}>
-            <Text style={styles.contactName}>
-              {contact.contact_user.display_name || "Unnamed user"}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.contactName}>
+                {contact.contact_user.display_name || "Unnamed user"}
+              </Text>
+              <View
+                style={[
+                  styles.presenceDot,
+                  onlineUsers[contact.contact_user.id]
+                    ? styles.presenceOnline
+                    : styles.presenceOffline,
+                ]}
+              />
+            </View>
             <Text style={styles.contactMeta}>
               {contact.contact_user.phone_number_normalized}
             </Text>
           </View>
           <Pressable
-            disabled={deleteMutation.isPending}
+            disabled={callMutation.isPending}
+            onPress={() => {
+              callMutation.mutate({
+                recipientUserId: contact.contact_user.id,
+                callType: "audio",
+              });
+            }}
+            style={styles.callButton}
+          >
+            <PhoneCall
+              color={appColors.primarySoft}
+              size={18}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+          <Pressable
+            disabled={callMutation.isPending}
+            onPress={() => {
+              callMutation.mutate({
+                recipientUserId: contact.contact_user.id,
+                callType: "video",
+              });
+            }}
+            style={styles.callButton}
+          >
+            <Video color={appColors.primarySoft} size={18} strokeWidth={2.2} />
+          </Pressable>
+          <Pressable
+            disabled={deleteMutation.isPending || callMutation.isPending}
             onPress={() => {
               deleteMutation.mutate(contact.id);
             }}
@@ -199,17 +256,41 @@ const styles = StyleSheet.create({
   contactCopy: {
     flex: 1,
   },
+  nameRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 6,
+  },
   contactName: {
     color: appColors.textPrimary,
     fontFamily: appTypography.fontFamily,
     fontSize: 17,
     fontWeight: "700",
-    marginBottom: 6,
   },
   contactMeta: {
     color: appColors.textSecondary,
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
+  },
+  presenceDot: {
+    borderRadius: 999,
+    height: 10,
+    width: 10,
+  },
+  presenceOnline: {
+    backgroundColor: "#86efac",
+  },
+  presenceOffline: {
+    backgroundColor: appColors.textSecondary,
+  },
+  callButton: {
+    alignItems: "center",
+    backgroundColor: appColors.primary,
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   deleteButton: {
     alignItems: "center",

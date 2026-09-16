@@ -13,14 +13,24 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { getCurrentUser, logout } from "@/src/features/auth/api";
+import { buildActiveCallRoute } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
+import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
 export default function HomeScreen() {
   const clearSession = useAuthStore((state: AuthState) => state.clearSession);
   const session = useAuthStore((state: AuthState) => state.session);
+  const activeCall = useCallStore((state) => state.activeCall);
+  const socketStatus = useCallStore((state) => state.socketStatus);
+  const activeCallCounterpart =
+    activeCall && session
+      ? activeCall.initiator.id === session.user.id
+        ? activeCall.recipient
+        : activeCall.initiator
+      : null;
 
   const meQuery = useQuery({
     enabled: Boolean(session),
@@ -69,6 +79,30 @@ export default function HomeScreen() {
           Device session storage, silent refresh, tab navigation, and editable
           profile fetch are active in the authenticated app shell.
         </Text>
+      </View>
+
+      <View style={styles.realtimeCard}>
+        <Text style={styles.realtimeTitle}>Realtime signaling</Text>
+        <Text style={styles.realtimeBody}>Socket status: {socketStatus}</Text>
+        {activeCall ? (
+          <Link href={buildActiveCallRoute(activeCall)} asChild>
+            <Pressable style={styles.activeCallLink}>
+              <View style={styles.navCopy}>
+                <Text style={styles.navTitle}>Return to active call</Text>
+                <Text style={styles.navBody}>
+                  {activeCall.call_type} call with{" "}
+                  {activeCallCounterpart?.display_name ||
+                    activeCallCounterpart?.phone_number_normalized}
+                </Text>
+              </View>
+              <ChevronRight
+                color={appColors.textSecondary}
+                size={18}
+                strokeWidth={2.2}
+              />
+            </Pressable>
+          </Link>
+        ) : null}
       </View>
 
       <View style={styles.navGrid}>
@@ -266,6 +300,40 @@ const styles = StyleSheet.create({
   navGrid: {
     gap: 12,
     marginBottom: 20,
+  },
+  realtimeCard: {
+    backgroundColor: appColors.surface,
+    borderColor: appColors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  realtimeTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  realtimeBody: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  activeCallLink: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: appColors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   navCard: {
     alignItems: "center",

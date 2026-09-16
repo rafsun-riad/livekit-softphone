@@ -21,9 +21,10 @@ Reference plan:
 - Phase 5 authentication is in progress with working backend auth endpoints, profile editing, and the first mobile secure-session flow.
 - Phase 6 contacts and search is in progress with backend discovery and contact endpoints plus first mobile contacts and search screens.
 - Django admin access is unblocked again: superuser creation now works with the custom phone-based user model, and all current backend models are registered in the admin site.
-- Push-notification testing now has backend device-discovery helpers, but the live database still has no registered device rows because the mobile push sync has not yet been validated on a real Android device.
+- Push-notification testing now has backend device-discovery helpers, a real registered device row, and a successful backend FCM dry-run send.
 - A real Android device is now detected by Expo, and the previous Firebase manifest merge failure in the Android build was resolved by removing the conflicting Expo notification-color manifest entry.
 - The Android debug build now completes successfully, the generated APK installs over USB on the connected device, and the app package accepts a direct adb launch intent.
+- Backend call APIs, websocket signaling, presence events, join-media authorization, and the first mobile outgoing or incoming or active call screens are now implemented in code and pass structural validation.
 
 ## Completed Phases
 
@@ -272,6 +273,7 @@ Completed items:
 - Registered `User`, `DeviceSession`, `Contact`, `Device`, `Call`, and `CallEvent` in the Django admin site.
 - Added `list_devices` and improved `send_test_push` management-command flows for device discovery and push-test targeting.
 - Surfaced the native push token in the mobile Settings screen to make device-registration failures easier to diagnose on hardware.
+- Verified a real backend device registration exists and successfully validated the FCM send path with `send_test_push --dry-run`.
 
 Commands run:
 
@@ -288,6 +290,7 @@ Commands run:
 - `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx expo export --platform android`
+- `cd backend && uv run python manage.py send_test_push d5d6a2e7-f100-47c0-8302-ac69f6abaa37 --dry-run --data call_id=test-call-1`
 
 Files created or updated:
 
@@ -329,8 +332,89 @@ Blockers resolved:
 
 Open follow-up notes:
 
-- `uv run python manage.py list_devices --inactive` currently reports no registered device rows in the live database.
-- A real Android development build still needs to log in, grant notification permission, and complete Settings push sync before backend push delivery can be exercised.
+- `uv run python manage.py list_devices --inactive` now reports an active registered device row for `+8801777770183`.
+- Backend FCM dry-run validation succeeds for device `d5d6a2e7-f100-47c0-8302-ac69f6abaa37`.
+
+### Phase 7: WebSocket and Presence
+
+Status: Implemented in code, validation pending beyond structural checks
+
+Completed items:
+
+- Added a Channels websocket consumer at `/ws/signaling/`.
+- Added JWT-authenticated websocket middleware for mobile bearer-token connections.
+- Added per-user signaling groups and contact-scoped presence fanout.
+- Added a singleton mobile realtime provider and socket client with reconnect logic and notification-response routing.
+
+Commands run:
+
+- `cd backend && uv run python -c "from config.asgi import application; print(type(application).__name__)"`
+- `cd mobile && npx tsc --noEmit`
+- `cd mobile && npx expo export --platform android`
+
+Decisions made:
+
+- Use websocket Authorization headers as the primary auth path, with query-string token support left only as a compatibility fallback.
+- Broadcast signaling to per-user groups and presence only to users who already hold the target as an accepted contact.
+
+### Phase 8: LiveKit Join Flow
+
+Status: Implemented in code, device validation pending
+
+Completed items:
+
+- Added backend `POST /api/calls/{id}/join-media/` with participant-scoped LiveKit token generation.
+- Added room-scoped token TTL handling and backend LiveKit configuration checks.
+- Added mobile media-session storage and join-media requests from the active call screens.
+
+Decisions made:
+
+- Keep the call API provider-neutral with `join-media` while issuing LiveKit tokens behind that contract.
+
+### Phase 9: Audio Calling
+
+Status: Implemented in code, manual and hardware validation pending
+
+Completed items:
+
+- Added backend call creation, detail, accept, reject, cancel, end, busy, and timed-out lifecycle handling.
+- Added mobile outgoing, incoming, and active audio-call screens.
+- Added audio-call actions from the contacts screen and active-call return handling on the home screen.
+
+### Phase 10: Video Calling
+
+Status: Implemented in code, manual and hardware validation pending
+
+Completed items:
+
+- Added a mobile active video-call screen with call-state-driven media authorization flow and local control UI.
+
+### Phase 11: Background and Terminated Incoming Calls
+
+Status: Partially implemented
+
+Completed items:
+
+- Added incoming-call push payload generation on the backend.
+- Added notification tap parsing and fallback incoming-call routing on mobile.
+- Added background message parsing so incoming-call payloads are recognized by the app runtime.
+
+Remaining gap in code:
+
+- Native full-screen incoming-call UI through CallKeep and Notifee is still pending.
+
+### Phase 12: Hardening and Verification
+
+Status: In progress
+
+Completed items:
+
+- Added busy and timed-out server call states to the active lifecycle path.
+- Added structural validation for backend checks, ASGI boot, mobile typecheck, and Expo Android export.
+
+Remaining gap in code:
+
+- Dedicated backend call tests and manual multi-device call verification are still pending.
 
 ### Phase 6: Contacts and Search
 
@@ -384,6 +468,8 @@ Use this section for cross-phase decisions that affect multiple parts of the pro
 - The project now has a working first-party device-session auth flow across backend and mobile.
 - The backend now includes a phone-normalizing Django authentication backend and admin registrations for all current domain models.
 - Backend push testing can now target a specific device UUID or the latest active device via management commands.
+- The backend now exposes a websocket signaling path and a full call lifecycle REST surface.
+- The mobile app now includes a singleton realtime client plus outgoing, incoming, audio, and video call routes.
 
 ## Commands History Summary
 
@@ -400,6 +486,7 @@ Use this section for high-signal commands worth preserving for future reference.
 - `cd backend && uv run python manage.py test apps.accounts`
 - `cd backend && uv run python manage.py test apps.devices`
 - `cd backend && uv run python manage.py list_devices --inactive`
+- `cd backend && uv run python manage.py send_test_push d5d6a2e7-f100-47c0-8302-ac69f6abaa37 --dry-run --data call_id=test-call-1`
 - `cd mobile && npx expo prebuild --platform android --no-install`
 - `cd mobile/android && ./gradlew -version`
 
@@ -413,6 +500,7 @@ Use this section to capture answers that should not be rediscovered later.
 - Auth screens now fit within safe areas and scroll correctly on smaller devices.
 - The keyboard handling path now uses `react-native-keyboard-controller` instead of the earlier `KeyboardAvoidingView` approach.
 - The custom user model now supports Django `createsuperuser` and Django admin authentication without abandoning normalized phone-number login.
+- Backend device registration is now confirmed with a real device row, and backend FCM dry-run delivery validates against that registered device.
 
 ## Last Updated
 

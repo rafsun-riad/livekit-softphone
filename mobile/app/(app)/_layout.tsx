@@ -114,6 +114,13 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="calls"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

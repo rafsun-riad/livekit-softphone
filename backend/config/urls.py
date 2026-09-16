@@ -13,5 +13,6 @@ urlpatterns = [
     path("api/users/", include("apps.accounts.user_urls")),
     path("api/contacts/", include("apps.contacts.urls")),
     path("api/devices/", include("apps.devices.urls")),
+    path("api/calls/", include("apps.calls.urls")),
     path("admin/", admin.site.urls),
 ]

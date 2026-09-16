@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
 import { PushNotificationsProvider } from "@/src/providers/push-notifications-provider";
+import { RealtimeProvider } from "@/src/providers/realtime-provider";
 
 type AppProvidersProps = PropsWithChildren<{
   colorMode?: "light" | "dark" | "system";
@@ -31,7 +32,9 @@ export function AppProviders({
       <SafeAreaProvider>
         <KeyboardProvider>
           <GluestackUIProvider mode={colorMode}>
-            <PushNotificationsProvider>{children}</PushNotificationsProvider>
+            <PushNotificationsProvider>
+              <RealtimeProvider>{children}</RealtimeProvider>
+            </PushNotificationsProvider>
           </GluestackUIProvider>
         </KeyboardProvider>
       </SafeAreaProvider>
