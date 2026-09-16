@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from typing import Any
+from typing import Any, ClassVar
 
 import phonenumbers
 from apps.common.models import UUIDTimeStampedModel
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -16,8 +17,13 @@ def normalize_phone_number(value: str) -> str:
     if not value:
         raise ValidationError({"phone_number": "Phone number is required."})
 
+    default_region = None
+    cleaned_value = value.strip()
+    if not cleaned_value.startswith("+"):
+        default_region = getattr(settings, "PHONENUMBER_DEFAULT_REGION", None)
+
     try:
-        parsed = phonenumbers.parse(value, None)
+        parsed = phonenumbers.parse(cleaned_value, default_region)
     except phonenumbers.NumberParseException as exc:
         raise ValidationError({"phone_number": "Enter a valid phone number."}) from exc
 
@@ -32,19 +38,23 @@ class UserManager(BaseUserManager["User"]):
 
     def _create_user(
         self,
-        phone_number: str,
+        phone_number: str | None,
         email: str,
         password: str | None,
+        phone_number_normalized: str | None = None,
         **extra_fields: Any,
     ) -> User:
         if not email:
             raise ValueError("The email field is required.")
+        if not phone_number and not phone_number_normalized:
+            raise ValueError("The phone number field is required.")
 
-        normalized_phone = normalize_phone_number(phone_number)
+        source_phone_number = phone_number or phone_number_normalized or ""
+        normalized_phone = normalize_phone_number(source_phone_number)
         normalized_email = self.normalize_email(email).lower()
 
         user = self.model(
-            phone_number=phone_number,
+            phone_number=phone_number or source_phone_number,
             phone_number_normalized=normalized_phone,
             email=normalized_email,
             **extra_fields,
@@ -55,20 +65,28 @@ class UserManager(BaseUserManager["User"]):
 
     def create_user(
         self,
-        phone_number: str,
+        phone_number: str | None,
         email: str,
         password: str | None = None,
+        phone_number_normalized: str | None = None,
         **extra_fields: Any,
     ) -> User:
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
-        return self._create_user(phone_number, email, password, **extra_fields)
+        return self._create_user(
+            phone_number,
+            email,
+            password,
+            phone_number_normalized=phone_number_normalized,
+            **extra_fields,
+        )
 
     def create_superuser(
         self,
-        phone_number: str,
         email: str,
         password: str,
+        phone_number: str | None = None,
+        phone_number_normalized: str | None = None,
         **extra_fields: Any,
     ) -> User:
         extra_fields.setdefault("is_staff", True)
@@ -79,7 +97,13 @@ class UserManager(BaseUserManager["User"]):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        return self._create_user(phone_number, email, password, **extra_fields)
+        return self._create_user(
+            phone_number,
+            email,
+            password,
+            phone_number_normalized=phone_number_normalized,
+            **extra_fields,
+        )
 
 
 class User(UUIDTimeStampedModel, AbstractUser):
@@ -88,13 +112,15 @@ class User(UUIDTimeStampedModel, AbstractUser):
     last_name = models.CharField(max_length=150, blank=True)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=32)
-    phone_number_normalized = models.CharField(max_length=32, unique=True)
+    phone_number_normalized = models.CharField(
+        "phone number", max_length=32, unique=True
+    )
     display_name = models.CharField(max_length=150, blank=True)
     phone_verified_at = models.DateTimeField(null=True, blank=True)
     email_verified_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "phone_number_normalized"
-    REQUIRED_FIELDS = ["email"]
+    REQUIRED_FIELDS: ClassVar[list[str]] = ["email"]
 
     objects = UserManager()
 
@@ -133,7 +159,7 @@ class DeviceSession(UUIDTimeStampedModel):
     revoke_reason = models.CharField(max_length=100, blank=True)
 
     class Meta:
-        ordering = ["-last_used_at"]
+        ordering: ClassVar[list[str]] = ["-last_used_at"]
 
     @staticmethod
     def hash_token(raw_token: str) -> str:

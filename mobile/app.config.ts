@@ -44,7 +44,6 @@ const config = {
     [
       "expo-notifications",
       {
-        color: "#22d3ee",
         defaultChannel: "incoming-calls",
       },
     ],

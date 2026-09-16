@@ -174,7 +174,80 @@ class DeviceAPITests(APITestCase):
         )
 
         send_mock.assert_called_once()
+        self.assertIn(f"Target device: {device.id}", stdout.getvalue())
         self.assertIn("successes=1 failures=0", stdout.getvalue())
+
+    @patch(
+        "apps.devices.management.commands.send_test_push.DevicePushService.send_to_devices"
+    )
+    def test_send_test_push_management_command_can_target_latest_device(
+        self, send_mock
+    ):
+        older_device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            push_token="fcm-token-older",
+            app_version="1.0.0",
+            device_label="Older Phone",
+        )
+        latest_device = Device.objects.create(
+            user=self.other_user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            push_token="fcm-token-latest",
+            app_version="1.0.1",
+            device_label="Latest Phone",
+        )
+        send_mock.return_value = PushSendResult(
+            success_count=1,
+            failure_count=0,
+            successful_tokens=["fcm-token-latest"],
+            failed_tokens=[],
+            message_ids=["message-2"],
+        )
+
+        Device.objects.filter(id=older_device.id).update(
+            last_seen_at=older_device.created_at
+        )
+
+        stdout = StringIO()
+        call_command("send_test_push", "--latest", stdout=stdout)
+
+        send_mock.assert_called_once_with(
+            devices=[latest_device],
+            title="LiveKit Softphone test push",
+            body="This is a test push notification from the backend.",
+            data={},
+            dry_run=False,
+        )
+        self.assertIn(f"Target device: {latest_device.id}", stdout.getvalue())
+
+    def test_list_devices_management_command_lists_registered_devices(self):
+        active_device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            push_token="fcm-token-1",
+            app_version="1.0.0",
+            device_label="Pixel 8",
+        )
+        inactive_device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            push_token="fcm-token-2",
+            app_version="1.0.0",
+            device_label="Old Pixel",
+            is_active=False,
+        )
+
+        stdout = StringIO()
+        call_command("list_devices", stdout=stdout)
+        output = stdout.getvalue()
+
+        self.assertIn(str(active_device.id), output)
+        self.assertNotIn(str(inactive_device.id), output)
 
 
 class DevicePushServiceTests(SimpleTestCase):

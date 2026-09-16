@@ -35,6 +35,9 @@ export default function SettingsScreen() {
   const registrationStatus = usePushStore(
     (state: PushState) => state.registrationStatus,
   );
+  const nativePushToken = usePushStore(
+    (state: PushState) => state.nativePushToken,
+  );
   const registeredDeviceId = usePushStore(
     (state: PushState) => state.registeredDeviceId,
   );
@@ -101,6 +104,9 @@ export default function SettingsScreen() {
         <Text style={styles.metaRow}>Permission: {permissionStatus}</Text>
         <Text style={styles.metaRow}>Status: {registrationStatus}</Text>
         <Text style={styles.metaRow}>
+          Native push token: {nativePushToken || "Not available yet"}
+        </Text>
+        <Text style={styles.metaRow}>
           Backend device ID: {registeredDeviceId || "Not registered yet"}
         </Text>
         <Text style={styles.metaRow}>
@@ -158,8 +164,17 @@ export default function SettingsScreen() {
         ) : null}
         {!devicesQuery.isLoading && !devicesQuery.data?.length ? (
           <Text style={styles.metaValue}>
-            No device registrations yet. After push sync succeeds, this list
-            will show the backend UUID you can use for test pushes.
+            No device registrations yet. A row is only created after the app is
+            running on a real Android development build, notification permission
+            is granted, and the authenticated push-sync request to the backend
+            succeeds.
+          </Text>
+        ) : null}
+        {!devicesQuery.isLoading && !devicesQuery.data?.length ? (
+          <Text style={styles.metaValue}>
+            After that happens, use the backend device UUID shown here or run
+            `uv run python manage.py list_devices` in `backend/` to find the
+            device for `send_test_push`.
           </Text>
         ) : null}
         {devicesQuery.data?.map((device) => (

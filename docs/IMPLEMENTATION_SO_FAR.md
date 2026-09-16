@@ -20,6 +20,10 @@ Reference plan:
 - Phase 4 backend foundation is complete with the custom user model, core domain models, generated migrations, and a successful PostgreSQL migration run.
 - Phase 5 authentication is in progress with working backend auth endpoints, profile editing, and the first mobile secure-session flow.
 - Phase 6 contacts and search is in progress with backend discovery and contact endpoints plus first mobile contacts and search screens.
+- Django admin access is unblocked again: superuser creation now works with the custom phone-based user model, and all current backend models are registered in the admin site.
+- Push-notification testing now has backend device-discovery helpers, but the live database still has no registered device rows because the mobile push sync has not yet been validated on a real Android device.
+- A real Android device is now detected by Expo, and the previous Firebase manifest merge failure in the Android build was resolved by removing the conflicting Expo notification-color manifest entry.
+- The Android debug build now completes successfully, the generated APK installs over USB on the connected device, and the app package accepts a direct adb launch intent.
 
 ## Completed Phases
 
@@ -136,6 +140,8 @@ Completed items:
 - Fixed the auth stack background path so login and register screens stay on the intended dark surface instead of flashing a light scene background.
 - Generated the Android native project with `expo prebuild` and verified Gradle and Java runtime.
 - Added a step-by-step USB build and real-device run guide for the mobile app.
+- Resolved the Android build failure caused by duplicate `com.google.firebase.messaging.default_notification_color` manifest metadata during Expo plus React Native Firebase integration.
+- Captured a full successful `assembleDebug` result for the Android project, installed the generated debug APK on the connected device, and launched the app package with adb.
 
 Commands run:
 
@@ -149,12 +155,22 @@ Commands run:
 - `cd mobile && npx expo export --platform android`
 - `cd mobile && npx expo prebuild --platform android --no-install`
 - `cd mobile/android && ./gradlew -version`
+- `cd mobile && npx expo run:android --device`
+- `cd mobile && npx expo prebuild --platform android --no-install`
+- `cd mobile/android && ./gradlew app:processDebugMainManifest --configure-on-demand --build-cache -PreactNativeDevServerPort=8081 -PreactNativeArchitectures=arm64-v8a`
+- `cd mobile/android && ./gradlew app:assembleDebug -x lint -x test --configure-on-demand --build-cache -PreactNativeDevServerPort=8081 -PreactNativeArchitectures=arm64-v8a`
+- `adb devices`
+- `adb install -r mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+- `adb shell am start -n com.livekitsoftphone.mobile/.MainActivity`
 
 Device testing notes:
 
-- Native Android build and real-device install are still pending.
+- Real-device build validation is now in progress on device `CPH2743`.
 - Local native generation passed without requiring a JDK switch away from Java 21.
-- A direct `adb devices` check currently returns no authorized Android device, so `npx expo run:android --device` cannot yet validate the app on hardware.
+- A full `assembleDebug` success line has now been captured locally.
+- The generated debug APK installs successfully on the connected device.
+- A direct adb launch intent for `com.livekitsoftphone.mobile/.MainActivity` succeeds.
+- The remaining hardware gap for push work is now entirely in-app: sign in, grant notification permission, and complete Settings push sync so the first `Device` row is created.
 
 Branding assets configured:
 
@@ -176,6 +192,8 @@ Blockers resolved:
 
 - None yet.
 - Resolved the NativeWind and gluestack verification issues around Babel, CSS imports, Expo Router integration, and missing peer dependencies.
+- Resolved the Firebase default-notification-color manifest conflict between Expo Notifications and React Native Firebase Messaging.
+- Resolved the first end-to-end Android build and install validation for the current mobile baseline.
 
 ### Phase 4: Backend Foundation
 
@@ -249,6 +267,11 @@ Completed items:
 - Installed `expo-notifications`, `expo-task-manager`, `expo-application`, `@react-native-firebase/app`, and `@react-native-firebase/messaging` in the mobile app.
 - Added mobile push-registration bootstrap code that requests notification permission, fetches the native device push token, registers it with `/api/devices/register/`, and surfaces the resulting backend device UUID in Settings.
 - Added Android-side Firebase messaging config in `mobile/firebase.json` and a background message handler scaffold in `mobile/index.ts`.
+- Fixed the custom user-manager contract so `createsuperuser` works with the `phone_number_normalized` username field.
+- Added a phone-aware Django authentication backend so Django admin login can normalize local phone input before lookup.
+- Registered `User`, `DeviceSession`, `Contact`, `Device`, `Call`, and `CallEvent` in the Django admin site.
+- Added `list_devices` and improved `send_test_push` management-command flows for device discovery and push-test targeting.
+- Surfaced the native push token in the mobile Settings screen to make device-registration failures easier to diagnose on hardware.
 
 Commands run:
 
@@ -258,6 +281,11 @@ Commands run:
 - `cd mobile && npm install @tanstack/react-query zustand`
 - `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx expo export --platform android`
+- `cd backend && uv run python manage.py test apps.accounts.tests.AuthAPITests.test_create_superuser_accepts_username_field_value apps.accounts.tests.AuthAPITests.test_authenticate_accepts_local_phone_input`
+- `cd backend && uv run python manage.py test apps.devices`
+- `cd backend && uv run python manage.py list_devices --inactive`
+- `cd backend && uv run python manage.py check`
+- `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx expo export --platform android`
 
@@ -287,6 +315,8 @@ Decisions made:
 - Model signed-in persistence with a first-party device session token separate from JWT access tokens.
 - Use secure storage plus Zustand hydration to restore the signed-in session on app launch.
 - Implement silent access-token refresh in the mobile authenticated request helper before broader API work.
+- Keep `phone_number_normalized` as the canonical Django username field, but normalize phone input inside a custom authentication backend so admin login and management commands remain usable.
+- Default backend phone normalization to `PHONENUMBER_DEFAULT_REGION=BD` unless explicitly overridden per environment.
 
 Deviations from plan:
 
@@ -295,6 +325,12 @@ Deviations from plan:
 Blockers resolved:
 
 - Backend auth endpoints and the first mobile auth flow are both validated end to end in local checks.
+- Django admin access is restored for the custom user model.
+
+Open follow-up notes:
+
+- `uv run python manage.py list_devices --inactive` currently reports no registered device rows in the live database.
+- A real Android development build still needs to log in, grant notification permission, and complete Settings push sync before backend push delivery can be exercised.
 
 ### Phase 6: Contacts and Search
 
@@ -346,6 +382,8 @@ Use this section for cross-phase decisions that affect multiple parts of the pro
 - PostgreSQL connectivity is confirmed by a successful `manage.py migrate` run.
 - Android prebuild works locally with Gradle `9.3.1`, Kotlin `2.2.21`, and Java `21.0.12`.
 - The project now has a working first-party device-session auth flow across backend and mobile.
+- The backend now includes a phone-normalizing Django authentication backend and admin registrations for all current domain models.
+- Backend push testing can now target a specific device UUID or the latest active device via management commands.
 
 ## Commands History Summary
 
@@ -360,6 +398,8 @@ Use this section for high-signal commands worth preserving for future reference.
 - `cd backend && uv run python manage.py makemigrations contacts devices calls`
 - `cd backend && uv run python manage.py migrate`
 - `cd backend && uv run python manage.py test apps.accounts`
+- `cd backend && uv run python manage.py test apps.devices`
+- `cd backend && uv run python manage.py list_devices --inactive`
 - `cd mobile && npx expo prebuild --platform android --no-install`
 - `cd mobile/android && ./gradlew -version`
 
@@ -372,6 +412,7 @@ Use this section to capture answers that should not be rediscovered later.
 - Expo Router, NativeWind, and gluestack can coexist in this repository once the generated config is cleaned up and missing peers are installed.
 - Auth screens now fit within safe areas and scroll correctly on smaller devices.
 - The keyboard handling path now uses `react-native-keyboard-controller` instead of the earlier `KeyboardAvoidingView` approach.
+- The custom user model now supports Django `createsuperuser` and Django admin authentication without abandoning normalized phone-number login.
 
 ## Last Updated
 

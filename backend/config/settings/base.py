@@ -105,6 +105,8 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = ("apps.accounts.backends.PhoneNumberModelBackend",)
+PHONENUMBER_DEFAULT_REGION = env_str("PHONENUMBER_DEFAULT_REGION", "BD")
 
 AUTH_PASSWORD_VALIDATORS = [
     {

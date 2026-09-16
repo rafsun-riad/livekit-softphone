@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import User
+from .models import DeviceSession, User
 
 
 @admin.register(User)
@@ -61,4 +61,30 @@ class UserAdmin(DjangoUserAdmin):
         "updated_at",
         "last_login",
         "phone_number_normalized",
+    )
+
+
+@admin.register(DeviceSession)
+class DeviceSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "device_label",
+        "last_used_at",
+        "rotated_at",
+        "revoked_at",
+    )
+    list_filter = ("revoked_at", "created_at", "rotated_at")
+    readonly_fields = (
+        "token_hash",
+        "created_at",
+        "updated_at",
+        "last_used_at",
+        "rotated_at",
+        "revoked_at",
+    )
+    search_fields = (
+        "user__email",
+        "user__phone_number",
+        "user__phone_number_normalized",
+        "device_label",
     )

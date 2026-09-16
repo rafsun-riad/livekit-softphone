@@ -1,7 +1,7 @@
-import type { FirebaseMessagingTypes } from "@react-native-firebase/messaging";
+import type { RemoteMessage } from "@react-native-firebase/messaging";
 
 export async function handleFirebaseBackgroundMessage(
-  remoteMessage: FirebaseMessagingTypes.RemoteMessage,
+  remoteMessage: RemoteMessage,
 ) {
   console.log("Background FCM message received", {
     data: remoteMessage.data,

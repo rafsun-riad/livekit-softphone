@@ -1,10 +1,42 @@
 from apps.accounts.models import DeviceSession, User
+from django.contrib.auth import authenticate
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 
 class AuthAPITests(APITestCase):
+    @override_settings(PHONENUMBER_DEFAULT_REGION="BD")
+    def test_create_superuser_accepts_username_field_value(self):
+        user = User.objects.create_superuser(
+            phone_number_normalized="01726540494",
+            email="admin@example.com",
+            password="StrongPass123!",
+            display_name="Admin User",
+        )
+
+        self.assertEqual(user.phone_number, "01726540494")
+        self.assertEqual(user.phone_number_normalized, "+8801726540494")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+
+    @override_settings(PHONENUMBER_DEFAULT_REGION="BD")
+    def test_authenticate_accepts_local_phone_input(self):
+        user = User.objects.create_superuser(
+            phone_number_normalized="01726540494",
+            email="admin@example.com",
+            password="StrongPass123!",
+            display_name="Admin User",
+        )
+
+        authenticated_user = authenticate(
+            username="01726540494",
+            password="StrongPass123!",
+        )
+
+        self.assertEqual(authenticated_user, user)
+
     def test_register_creates_user_with_normalized_fields(self):
         response = self.client.post(
             reverse("auth-register"),

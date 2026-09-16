@@ -23,8 +23,8 @@ Reference plan:
 
 ## Next Immediate Actions
 
-1. Run the first real-device Android install and development build check.
-2. Verify the mobile push-registration flow on hardware so the backend device UUID appears in Settings and can be used with `send_test_push`.
+1. Complete the in-app hardware validation flow by signing in on the installed Android app, granting notification permission, and running Settings push sync.
+2. Verify the mobile push-registration flow on hardware so the backend device UUID appears in Settings and can be used with `send_test_push` or discovered with `list_devices`.
 3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
 4. Expand the contacts and directory UX on mobile and validate it on device.
 5. Prepare the WebSocket singleton path for Phase 7.
@@ -66,7 +66,7 @@ Status: In progress
 
 Remaining tasks:
 
-- Confirm real Android phone installation over USB.
+- Confirm the installed Android app launches correctly and reaches the login or signed-in flow on hardware.
 - Confirm debug APK generation path and install workflow.
 - Confirm the generated Android project installs and launches on a real device, including the updated keyboard-aware auth screens.
 
@@ -113,6 +113,7 @@ Remaining tasks:
 - Integrate the new `useAPI.ts` abstraction further as later feature modules are added.
 - Add mobile auth UX polish for loading, empty, and failure states.
 - Verify the secure session flow on a real Android device.
+- Verify that local-phone admin login and `createsuperuser` remain correct in the real environment after the next backend auth changes.
 
 Dependencies:
 
@@ -129,7 +130,7 @@ Status: In progress
 Remaining tasks:
 
 - Add any remaining mobile polish around duplicate-contact feedback and empty states.
-- Connect the future push-token acquisition flow to the new mobile devices API surface.
+- Connect the future push-token acquisition flow to the new mobile devices API surface and confirm it creates `Device` rows on hardware.
 - Validate the contacts and directory flow on a real Android device.
 - Decide whether search should later include additional privacy-preserving filters or throttling.
 
@@ -156,8 +157,9 @@ Dependencies:
 
 ## Active Blockers
 
-- Android build validation cannot proceed until an authorized Android phone appears in `adb devices`.
 - Firebase Android app registration, backend FCM sending, and mobile token-registration code are in place; the remaining blocker is hardware validation of that path.
+- The live database currently has no registered `Device` rows, so `send_test_push` cannot exercise real delivery until a hardware push sync succeeds.
+- The earlier Expo plus React Native Firebase manifest conflict is resolved, and the debug APK now builds and installs successfully; the remaining hardware blocker is in-app sign-in plus successful push sync creating the first `Device` row.
 
 ## Risks To Re-check During Execution
 
