@@ -24,7 +24,7 @@ export default function HomeScreen() {
 
   const meQuery = useQuery({
     enabled: Boolean(session),
-    queryFn: getCurrentUser,
+    queryFn: ({ signal }) => getCurrentUser({ signal }),
     queryKey: ["me"],
   });
 

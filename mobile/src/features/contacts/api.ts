@@ -1,9 +1,15 @@
-import { authenticatedRequest } from "@/src/lib/api/client";
+import {
+  authenticatedRequest,
+  type AuthenticatedRequestOptions,
+} from "@/src/lib/api/client";
 
 import type { Contact, DirectoryUser } from "./types";
 
-export function getContacts() {
+type RequestOptions = Omit<AuthenticatedRequestOptions, "method" | "body">;
+
+export function getContacts(requestOptions: RequestOptions = {}) {
   return authenticatedRequest<Contact[]>("/api/contacts/", {
+    ...requestOptions,
     method: "GET",
   });
 }
@@ -23,11 +29,15 @@ export function deleteContact(contactId: string) {
   });
 }
 
-export function searchUsers(query: string) {
+export function searchUsers(
+  query: string,
+  requestOptions: RequestOptions = {},
+) {
   const params = new URLSearchParams({ q: query });
   return authenticatedRequest<DirectoryUser[]>(
     `/api/users/search/?${params.toString()}`,
     {
+      ...requestOptions,
       method: "GET",
     },
   );

@@ -11,7 +11,7 @@ import { appColors, appTypography } from "@/src/theme/app-theme";
 export default function ContactsScreen() {
   const queryClient = useQueryClient();
   const contactsQuery = useQuery({
-    queryFn: getContacts,
+    queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
   });
 

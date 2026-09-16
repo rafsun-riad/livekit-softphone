@@ -132,6 +132,8 @@ Completed items:
 - Moved Expo configuration into `mobile/app.config.ts`.
 - Added an Android-style authenticated bottom-tab shell with Home, Contacts, Search, and Profile routes.
 - Added keyboard-safe scroll handling for form-driven mobile screens so input fields remain reachable when the software keyboard opens.
+- Replaced the initial keyboard workaround with `react-native-keyboard-controller` so auth and form screens can stay scrollable while the keyboard remains open.
+- Fixed the auth stack background path so login and register screens stay on the intended dark surface instead of flashing a light scene background.
 - Generated the Android native project with `expo prebuild` and verified Gradle and Java runtime.
 - Added a step-by-step USB build and real-device run guide for the mobile app.
 
@@ -143,6 +145,7 @@ Commands run:
 - `cd mobile && npm install -D babel-preset-expo`
 - `cd mobile && npx expo install expo-linking react-dom react-native-web expo-font expo-splash-screen expo-system-ui expo-secure-store`
 - `cd mobile && npm install @expo-google-fonts/roboto-flex lucide-react-native @tanstack/react-query zustand`
+- `cd mobile && npx expo install react-native-keyboard-controller`
 - `cd mobile && npx expo export --platform android`
 - `cd mobile && npx expo prebuild --platform android --no-install`
 - `cd mobile/android && ./gradlew -version`
@@ -151,6 +154,7 @@ Device testing notes:
 
 - Native Android build and real-device install are still pending.
 - Local native generation passed without requiring a JDK switch away from Java 21.
+- A direct `adb devices` check currently returns no authorized Android device, so `npx expo run:android --device` cannot yet validate the app on hardware.
 
 Branding assets configured:
 
@@ -232,9 +236,11 @@ Completed items:
 - Installed mobile auth dependencies for secure storage, query state, and persisted session state.
 - Added a mobile auth store backed by `expo-secure-store`.
 - Added a mobile API client, auth API module, and authenticated request helper with silent refresh on `401`.
+- Added a first `useAPI.ts` hook and propagated abort signals through query-backed mobile API calls.
 - Replaced placeholder auth screens with functional register, login, and logout flows.
 - Wrapped the mobile route shell in safe-area bounds and made the auth screens scrollable so smaller Android devices do not clip registration content.
 - Added mobile Profile and Settings screens so account editing and session controls now live inside the signed-in shell.
+- Firebase CLI login now succeeds for `mruhaquer@gmail.com`, but Firebase project creation is currently blocked by a Google-side `403 The caller does not have permission` response.
 
 Commands run:
 
@@ -357,6 +363,7 @@ Use this section to capture answers that should not be rediscovered later.
 - The local PostgreSQL configuration is valid enough for Django migrations to run successfully.
 - Expo Router, NativeWind, and gluestack can coexist in this repository once the generated config is cleaned up and missing peers are installed.
 - Auth screens now fit within safe areas and scroll correctly on smaller devices.
+- The keyboard handling path now uses `react-native-keyboard-controller` instead of the earlier `KeyboardAvoidingView` approach.
 
 ## Last Updated
 

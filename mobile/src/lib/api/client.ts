@@ -2,7 +2,7 @@ import { requireApiUrl } from "@/src/config/env";
 import type { AuthSession } from "@/src/features/auth/types";
 import { useAuthStore } from "@/src/stores/auth-store";
 
-type JSONValue =
+export type JSONValue =
   | string
   | number
   | boolean
@@ -16,10 +16,15 @@ type APIErrorShape = {
   details?: unknown;
 };
 
-type APIRequestOptions = Omit<RequestInit, "body"> & {
+export type APIRequestOptions = Omit<RequestInit, "body"> & {
   body?: BodyInit | Record<string, JSONValue> | null;
   accessToken?: string | null;
 };
+
+export type AuthenticatedRequestOptions = Omit<
+  APIRequestOptions,
+  "accessToken"
+>;
 
 export class APIError extends Error {
   status: number;

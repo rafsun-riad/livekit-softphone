@@ -24,7 +24,7 @@ export default function ProfileScreen() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const meQuery = useQuery({
-    queryFn: getCurrentUser,
+    queryFn: ({ signal }) => getCurrentUser({ signal }),
     queryKey: ["me"],
   });
 

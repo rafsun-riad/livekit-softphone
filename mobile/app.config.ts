@@ -10,6 +10,7 @@ const config = {
   slug: "livekit-softphone",
   version: "1.0.0",
   orientation: "portrait",
+  backgroundColor: "#020617",
   userInterfaceStyle: "dark",
   icon: branding.appIcon,
   splash: {
@@ -18,10 +19,12 @@ const config = {
     backgroundColor: "#020617",
   },
   ios: {
+    backgroundColor: "#020617",
     supportsTablet: true,
     bundleIdentifier: "com.livekitsoftphone.mobile",
   },
   android: {
+    backgroundColor: "#020617",
     package: "com.livekitsoftphone.mobile",
     adaptiveIcon: {
       backgroundColor: "#020617",

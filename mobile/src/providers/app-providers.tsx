@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PropsWithChildren } from "react";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
@@ -27,7 +28,9 @@ export function AppProviders({
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <GluestackUIProvider mode={colorMode}>{children}</GluestackUIProvider>
+        <KeyboardProvider>
+          <GluestackUIProvider mode={colorMode}>{children}</GluestackUIProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );

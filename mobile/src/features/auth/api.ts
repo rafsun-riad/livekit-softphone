@@ -1,4 +1,8 @@
-import { apiRequest, authenticatedRequest } from "@/src/lib/api/client";
+import {
+  apiRequest,
+  authenticatedRequest,
+  type AuthenticatedRequestOptions,
+} from "@/src/lib/api/client";
 
 import type {
   AuthSession,
@@ -56,8 +60,11 @@ export function logout({
   });
 }
 
-export function getCurrentUser() {
+export function getCurrentUser(
+  requestOptions: Omit<AuthenticatedRequestOptions, "method" | "body"> = {},
+) {
   return authenticatedRequest<AuthUser>("/api/users/me/", {
+    ...requestOptions,
     method: "GET",
   });
 }

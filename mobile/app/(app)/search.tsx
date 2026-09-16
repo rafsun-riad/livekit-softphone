@@ -18,7 +18,7 @@ export default function SearchScreen() {
 
   const searchQuery = useQuery({
     enabled: deferredQuery.length >= 2,
-    queryFn: () => searchUsers(deferredQuery),
+    queryFn: ({ signal }) => searchUsers(deferredQuery, { signal }),
     queryKey: ["users", "search", { q: deferredQuery }],
   });
 

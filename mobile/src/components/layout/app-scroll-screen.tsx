@@ -1,12 +1,13 @@
 import { PropsWithChildren } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
+import { appColors } from "@/src/theme/app-theme";
 
 type AppScrollScreenProps = PropsWithChildren<{
   centerContent?: boolean;
@@ -21,35 +22,33 @@ export function AppScrollScreen({
   keyboardVerticalOffset = 0,
 }: AppScrollScreenProps) {
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={keyboardVerticalOffset}
+    <KeyboardAwareScrollView
+      bottomOffset={keyboardVerticalOffset}
+      contentContainerStyle={[
+        styles.scrollContent,
+        centerContent && styles.centerContent,
+        contentContainerStyle,
+      ]}
+      extraKeyboardSpace={Platform.OS === "android" ? 28 : 20}
+      keyboardDismissMode="none"
+      keyboardShouldPersistTaps="always"
+      mode="layout"
+      showsVerticalScrollIndicator={false}
       style={styles.screen}
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          centerContent && styles.centerContent,
-          contentContainerStyle,
-        ]}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        style={styles.screen}
-      >
-        {children}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {children}
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: appColors.background,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
   centerContent: {
     justifyContent: "center",

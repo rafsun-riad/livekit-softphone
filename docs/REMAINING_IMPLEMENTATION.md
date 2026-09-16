@@ -24,7 +24,7 @@ Reference plan:
 ## Next Immediate Actions
 
 1. Run the first real-device Android install and development build check.
-2. Complete Firebase project and Android app setup immediately after the Phase 2 device-build check, then use it to start Phase 3 native messaging work.
+2. Resolve Firebase project-creation permissions in the browser console, then complete Firebase project and Android app setup immediately after the Phase 2 device-build check.
 3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
 4. Expand the contacts and directory UX on mobile and validate it on device.
 5. Prepare the WebSocket singleton path for Phase 7.
@@ -68,7 +68,7 @@ Remaining tasks:
 
 - Confirm real Android phone installation over USB.
 - Confirm debug APK generation path and install workflow.
-- Confirm the generated Android project installs and launches on a real device.
+- Confirm the generated Android project installs and launches on a real device, including the updated keyboard-aware auth screens.
 
 Dependencies:
 
@@ -110,7 +110,7 @@ Status: In progress
 Remaining tasks:
 
 - Add any missing authentication edge-case tests.
-- Add `useAPI.ts` or equivalent shared API abstraction on top of the current client.
+- Integrate the new `useAPI.ts` abstraction further as later feature modules are added.
 - Add mobile auth UX polish for loading, empty, and failure states.
 - Verify the secure session flow on a real Android device.
 
@@ -155,7 +155,8 @@ Dependencies:
 
 ## Active Blockers
 
-- Android build validation has not started yet.
+- Android build validation cannot proceed until an authorized Android phone appears in `adb devices`.
+- Firebase CLI authentication is complete, but project creation is blocked by Google-side permissions on the provided account.
 
 ## Risks To Re-check During Execution
 
