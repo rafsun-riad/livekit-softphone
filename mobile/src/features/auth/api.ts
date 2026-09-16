@@ -5,6 +5,7 @@ import type {
   AuthUser,
   LoginPayload,
   RegisterPayload,
+  UpdateCurrentUserPayload,
 } from "./types";
 
 export function register(payload: RegisterPayload) {
@@ -58,5 +59,17 @@ export function logout({
 export function getCurrentUser() {
   return authenticatedRequest<AuthUser>("/api/users/me/", {
     method: "GET",
+  });
+}
+
+export function updateCurrentUser(payload: UpdateCurrentUserPayload) {
+  return authenticatedRequest<AuthUser>("/api/users/me/", {
+    method: "PATCH",
+    body: {
+      display_name: payload.displayName,
+      email: payload.email,
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+    },
   });
 }

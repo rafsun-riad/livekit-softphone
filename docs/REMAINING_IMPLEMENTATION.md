@@ -19,13 +19,14 @@ Reference plan:
 - Phase 2 is in progress.
 - Phase 4 is complete.
 - Phase 5 is in progress.
+- Phase 6 is in progress.
 
 ## Next Immediate Actions
 
 1. Run the first real-device Android install and development build check.
-2. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
-3. Start Phase 6 with user search, contacts list, and contact creation endpoints.
-4. Add mobile feature modules for contacts and authenticated profile state.
+2. Complete Firebase project and Android app setup immediately after the Phase 2 device-build check, then use it to start Phase 3 native messaging work.
+3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
+4. Expand the contacts and directory UX on mobile and validate it on device.
 5. Prepare the WebSocket singleton path for Phase 7.
 
 ## Remaining Phases
@@ -80,6 +81,7 @@ Status: Pending
 Remaining tasks:
 
 - Integrate LiveKit native dependencies.
+- Complete Firebase project, Android app registration, and config-file setup before wiring FCM delivery.
 - Integrate Firebase Messaging.
 - Integrate CallKeep.
 - Integrate Notifee.
@@ -103,7 +105,7 @@ Dependencies:
 
 ### Phase 5: Authentication
 
-Status: Pending
+Status: In progress
 
 Remaining tasks:
 
@@ -118,11 +120,28 @@ Dependencies:
 
 ### Phase 6 to Phase 12
 
+Status: Mixed
+
+### Phase 6: Contacts and Search
+
+Status: In progress
+
+Remaining tasks:
+
+- Add any remaining mobile polish around duplicate-contact feedback and empty states.
+- Validate the contacts and directory flow on a real Android device.
+- Decide whether search should later include additional privacy-preserving filters or throttling.
+
+Dependencies:
+
+- Phase 5 mobile auth flow remains active and stable.
+
+### Phase 7 to Phase 12
+
 Status: Pending
 
 Remaining tasks:
 
-- Contacts and search
 - WebSocket and presence
 - LiveKit join flow
 - Audio calling
@@ -151,8 +170,9 @@ Dependencies:
 - Whether a preview APK profile is needed beyond the direct USB development-build workflow.
 - Whether additional theming variants are needed for the splash and launcher assets.
 - Whether to keep the current root `app/` Expo Router structure or later move routes under `src/app/`.
+- Whether Expo Router typed-route generation will later recognize the new sibling app routes without relying on relative href strings.
 
 ## Last Updated
 
-- Date: 2026-09-15
+- Date: 2026-09-16
 - Updated by: GitHub Copilot

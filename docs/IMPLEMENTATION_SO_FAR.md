@@ -16,9 +16,10 @@ Reference plan:
 
 - Phase 0 environment verification is complete.
 - Phase 1 repository bootstrap is complete.
-- Phase 2 mobile foundation is functionally complete in code and verified through Android export and prebuild, with only real-device install validation still pending.
+- Phase 2 mobile foundation is functionally complete in code and verified through Android export and prebuild, with keyboard-safe screens and a bottom-tab app shell in place, and only real-device install validation still pending.
 - Phase 4 backend foundation is complete with the custom user model, core domain models, generated migrations, and a successful PostgreSQL migration run.
-- Phase 5 authentication is in progress with working backend auth endpoints and the first mobile secure-session flow.
+- Phase 5 authentication is in progress with working backend auth endpoints, profile editing, and the first mobile secure-session flow.
+- Phase 6 contacts and search is in progress with backend discovery and contact endpoints plus first mobile contacts and search screens.
 
 ## Completed Phases
 
@@ -129,6 +130,8 @@ Completed items:
 - Added shared app providers, font loading, icon support, and secure-store plugin wiring.
 - Added a dedicated branding asset structure under `mobile/assets/branding/`.
 - Moved Expo configuration into `mobile/app.config.ts`.
+- Added an Android-style authenticated bottom-tab shell with Home, Contacts, Search, and Profile routes.
+- Added keyboard-safe scroll handling for form-driven mobile screens so input fields remain reachable when the software keyboard opens.
 - Generated the Android native project with `expo prebuild` and verified Gradle and Java runtime.
 - Added a step-by-step USB build and real-device run guide for the mobile app.
 
@@ -225,10 +228,13 @@ Completed items:
 - Implemented backend `register`, `login`, `refresh`, and `logout` endpoints.
 - Implemented backend `GET /api/users/me/` for authenticated profile fetch.
 - Added backend auth tests covering registration, device-session refresh, logout revocation, and current-user fetch.
+- Added backend support and tests for `PATCH /api/users/me/`.
 - Installed mobile auth dependencies for secure storage, query state, and persisted session state.
 - Added a mobile auth store backed by `expo-secure-store`.
 - Added a mobile API client, auth API module, and authenticated request helper with silent refresh on `401`.
 - Replaced placeholder auth screens with functional register, login, and logout flows.
+- Wrapped the mobile route shell in safe-area bounds and made the auth screens scrollable so smaller Android devices do not clip registration content.
+- Added mobile Profile and Settings screens so account editing and session controls now live inside the signed-in shell.
 
 Commands run:
 
@@ -236,6 +242,8 @@ Commands run:
 - `cd backend && uv run python manage.py test apps.accounts`
 - `cd mobile && npx expo install expo-secure-store`
 - `cd mobile && npm install @tanstack/react-query zustand`
+- `cd mobile && npx tsc --noEmit`
+- `cd mobile && npx expo export --platform android`
 - `cd mobile && npx tsc --noEmit`
 - `cd mobile && npx expo export --platform android`
 
@@ -253,9 +261,12 @@ Files created or updated:
 - `mobile/src/features/auth/types.ts`
 - `mobile/src/stores/auth-store.ts`
 - `mobile/src/components/auth/auth-field.tsx`
+- `mobile/src/components/layout/app-scroll-screen.tsx`
 - `mobile/app/(auth)/login.tsx`
 - `mobile/app/(auth)/register.tsx`
 - `mobile/app/(app)/index.tsx`
+- `mobile/app/(app)/profile.tsx`
+- `mobile/app/(app)/settings.tsx`
 
 Decisions made:
 
@@ -270,6 +281,38 @@ Deviations from plan:
 Blockers resolved:
 
 - Backend auth endpoints and the first mobile auth flow are both validated end to end in local checks.
+
+### Phase 6: Contacts and Search
+
+Status: In progress
+
+Completed items:
+
+- Implemented backend `GET /api/users/search/` for authenticated user discovery with limited public fields.
+- Implemented backend `GET /api/contacts/`, `POST /api/contacts/`, and `DELETE /api/contacts/{id}/`.
+- Added backend tests for user search, contact creation, contact listing, duplicate prevention, and contact deletion.
+- Added the first mobile contacts API module and shared contact types.
+- Added authenticated mobile contacts and user-search screens under the app shell.
+- Linked the home screen to the new contacts and search routes.
+
+Commands run:
+
+- `cd backend && uv run python manage.py test apps.accounts apps.contacts`
+- `cd mobile && npx tsc --noEmit`
+- `cd mobile && npx expo export --platform android`
+
+Decisions made:
+
+- User discovery responses exclude email and return only the limited fields currently needed for contact selection.
+- New sibling app routes use relative Expo Router hrefs in this workspace because typed-route generation did not expose the new absolute paths cleanly.
+
+Deviations from plan:
+
+- The first contacts and search screens are stack-based screens reached from the home shell rather than a fuller tab or section navigation model.
+
+Blockers resolved:
+
+- The next mobile slice now has working backend endpoints and validated app routes to build on.
 
 ### Phase 3 and Later
 
@@ -313,8 +356,10 @@ Use this section to capture answers that should not be rediscovered later.
 - The requested backend baseline can be installed locally on CPython 3.14 with Django 6.0.8 and DRF 3.18.1.
 - The local PostgreSQL configuration is valid enough for Django migrations to run successfully.
 - Expo Router, NativeWind, and gluestack can coexist in this repository once the generated config is cleaned up and missing peers are installed.
+- Auth screens now fit within safe areas and scroll correctly on smaller devices.
 
 ## Last Updated
 
 - Date: 2026-09-15
+- Date: 2026-09-16
 - Updated by: GitHub Copilot

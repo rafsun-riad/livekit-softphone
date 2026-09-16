@@ -21,3 +21,4 @@ mobile/ios/
 
 # OS and editor noise
 .DS_Store
+.vscode/

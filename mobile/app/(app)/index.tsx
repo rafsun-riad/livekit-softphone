@@ -1,7 +1,17 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { PhoneCall, ShieldCheck } from "lucide-react-native";
+import { Link } from "expo-router";
+import {
+  ChevronRight,
+  PhoneCall,
+  Search,
+  Settings,
+  ShieldCheck,
+  UserRound,
+  UsersRound,
+} from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { getCurrentUser, logout } from "@/src/features/auth/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import type { AuthState } from "@/src/stores/auth-store";
@@ -26,37 +36,121 @@ export default function HomeScreen() {
   });
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.heroRow}>
-        <View style={styles.heroIcon}>
-          <PhoneCall
-            color={appColors.actionDarkText}
-            size={24}
-            strokeWidth={2.2}
-          />
+    <AppScrollScreen contentContainerStyle={styles.content}>
+      <View style={styles.heroCard}>
+        <View style={styles.heroRow}>
+          <View style={styles.heroIcon}>
+            <PhoneCall
+              color={appColors.actionDarkText}
+              size={24}
+              strokeWidth={2.2}
+            />
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.label}>Signed-In Shell</Text>
+            <Text style={styles.title}>
+              Ready for contacts, search, and calls
+            </Text>
+          </View>
         </View>
-        <View style={styles.heroCopy}>
-          <Text style={styles.label}>App Shell</Text>
-          <Text style={styles.title}>
-            Home route is now managed by Expo Router
-          </Text>
-        </View>
+        <Text style={styles.body}>
+          Signed in as{" "}
+          {meQuery.data?.display_name ||
+            session?.user.display_name ||
+            session?.user.phone_number_normalized}
+          . The Android app shell now uses a bottom navigation bar so the main
+          screens stay reachable like a typical mobile app.
+        </Text>
       </View>
-      <Text style={styles.body}>
-        Signed in as{" "}
-        {meQuery.data?.display_name ||
-          session?.user.display_name ||
-          session?.user.phone_number_normalized}
-        . The next step is contact search, profile fetch, and authenticated API
-        hooks.
-      </Text>
 
       <View style={styles.callout}>
         <ShieldCheck color={appColors.cyanSoft} size={18} strokeWidth={2.2} />
         <Text style={styles.calloutText}>
-          Device session storage, silent refresh, route guards, and the first
-          authenticated profile fetch are active in the app shell.
+          Device session storage, silent refresh, tab navigation, and editable
+          profile fetch are active in the authenticated app shell.
         </Text>
+      </View>
+
+      <View style={styles.navGrid}>
+        <Link href="./contacts" asChild>
+          <Pressable style={styles.navCard}>
+            <UsersRound
+              color={appColors.primarySoft}
+              size={20}
+              strokeWidth={2.2}
+            />
+            <View style={styles.navCopy}>
+              <Text style={styles.navTitle}>Contacts</Text>
+              <Text style={styles.navBody}>
+                See callable users and manage the list.
+              </Text>
+            </View>
+            <ChevronRight
+              color={appColors.textSecondary}
+              size={18}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+        </Link>
+
+        <Link href="./search" asChild>
+          <Pressable style={styles.navCard}>
+            <Search color={appColors.primarySoft} size={20} strokeWidth={2.2} />
+            <View style={styles.navCopy}>
+              <Text style={styles.navTitle}>Search</Text>
+              <Text style={styles.navBody}>
+                Find registered users and add contacts.
+              </Text>
+            </View>
+            <ChevronRight
+              color={appColors.textSecondary}
+              size={18}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+        </Link>
+
+        <Link href="./profile" asChild>
+          <Pressable style={styles.navCard}>
+            <UserRound
+              color={appColors.primarySoft}
+              size={20}
+              strokeWidth={2.2}
+            />
+            <View style={styles.navCopy}>
+              <Text style={styles.navTitle}>Profile</Text>
+              <Text style={styles.navBody}>
+                Review and update your account details.
+              </Text>
+            </View>
+            <ChevronRight
+              color={appColors.textSecondary}
+              size={18}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+        </Link>
+
+        <Link href="./settings" asChild>
+          <Pressable style={styles.navCard}>
+            <Settings
+              color={appColors.primarySoft}
+              size={20}
+              strokeWidth={2.2}
+            />
+            <View style={styles.navCopy}>
+              <Text style={styles.navTitle}>Settings</Text>
+              <Text style={styles.navBody}>
+                Inspect environment config and sign out.
+              </Text>
+            </View>
+            <ChevronRight
+              color={appColors.textSecondary}
+              size={18}
+              strokeWidth={2.2}
+            />
+          </Pressable>
+        </Link>
       </View>
 
       {meQuery.isError ? (
@@ -89,19 +183,26 @@ export default function HomeScreen() {
         ]}
       >
         <Text style={styles.actionLabel}>
-          {logoutMutation.isPending ? "Signing out..." : "Sign out"}
+          {logoutMutation.isPending ? "Signing out..." : "Quick sign out"}
         </Text>
       </Pressable>
-    </View>
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    justifyContent: "center",
+  content: {
     paddingHorizontal: 24,
     backgroundColor: appColors.background,
+  },
+  heroCard: {
+    backgroundColor: appColors.surface,
+    borderColor: appColors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginBottom: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
   },
   heroRow: {
     alignItems: "center",
@@ -141,7 +242,6 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 16,
     lineHeight: 24,
-    marginBottom: 28,
     maxWidth: 360,
   },
   callout: {
@@ -162,6 +262,37 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
     lineHeight: 20,
+  },
+  navGrid: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  navCard: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: appColors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  navCopy: {
+    flex: 1,
+  },
+  navTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  navBody: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    lineHeight: 19,
   },
   errorText: {
     color: "#fca5a5",

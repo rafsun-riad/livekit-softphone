@@ -27,6 +27,39 @@ class UserSummarySerializer(serializers.ModelSerializer[User]):
         read_only_fields = fields
 
 
+class UserDiscoverySerializer(serializers.ModelSerializer[User]):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "phone_number_normalized",
+            "display_name",
+            "first_name",
+            "last_name",
+        )
+        read_only_fields = fields
+
+
+class CurrentUserUpdateSerializer(serializers.ModelSerializer[User]):
+    class Meta:
+        model = User
+        fields = ("display_name", "email", "first_name", "last_name")
+
+    def validate_email(self, value: str) -> str:
+        normalized_email = User.objects.normalize_email(value).lower()
+
+        if (
+            User.objects.filter(email=normalized_email)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        ):
+            raise serializers.ValidationError(
+                "An account with this email already exists."
+            )
+
+        return normalized_email
+
+
 class RegisterSerializer(serializers.Serializer[dict[str, str]]):
     phone_number = serializers.CharField(max_length=32)
     email = serializers.EmailField(max_length=254)

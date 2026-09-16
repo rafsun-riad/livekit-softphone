@@ -6,6 +6,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppProviders } from "@/src/providers/app-providers";
 import type { AuthState } from "@/src/stores/auth-store";
@@ -36,13 +37,18 @@ export default function RootLayout() {
   return (
     <AppProviders colorMode="dark">
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: "fade",
-          contentStyle: { backgroundColor: "#020617" },
-        }}
-      />
+      <SafeAreaView
+        edges={["top", "bottom", "left", "right"]}
+        style={{ flex: 1, backgroundColor: "#020617" }}
+      >
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+            contentStyle: { backgroundColor: "#020617" },
+          }}
+        />
+      </SafeAreaView>
     </AppProviders>
   );
 }

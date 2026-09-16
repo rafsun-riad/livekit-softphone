@@ -10,6 +10,7 @@ export type AuthState = {
   session: AuthSession | null;
   hydrate: () => Promise<void>;
   setSession: (session: AuthSession) => Promise<void>;
+  setUser: (user: AuthSession["user"]) => Promise<void>;
   clearSession: () => Promise<void>;
 };
 
@@ -22,7 +23,7 @@ async function writeSession(session: AuthSession | null) {
   await SecureStore.setItemAsync(AUTH_SESSION_KEY, JSON.stringify(session));
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   isHydrated: false,
   session: null,
   hydrate: async () => {
@@ -41,6 +42,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: async (session) => {
     await writeSession(session);
     set({ isHydrated: true, session });
+  },
+  setUser: async (user) => {
+    const session = get().session;
+    if (!session) {
+      return;
+    }
+
+    const nextSession = { ...session, user };
+    await writeSession(nextSession);
+    set({ isHydrated: true, session: nextSession });
   },
   clearSession: async () => {
     await writeSession(null);

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db.models import Q
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,9 +7,11 @@ from rest_framework.views import APIView
 from .serializers import (
     AuthResponseSerializer,
     AuthService,
+    CurrentUserUpdateSerializer,
     DeviceSessionTokenSerializer,
     LoginSerializer,
     RegisterSerializer,
+    UserDiscoverySerializer,
     UserSummarySerializer,
 )
 
@@ -135,4 +138,51 @@ class CurrentUserView(APIView):
     def get(self, request):
         return Response(
             UserSummarySerializer(request.user).data, status=status.HTTP_200_OK
+        )
+
+    def patch(self, request):
+        serializer = CurrentUserUpdateSerializer(
+            request.user, data=request.data, partial=True
+        )
+        if not serializer.is_valid():
+            return error_response(
+                code="profile_update_failed",
+                message="Unable to update profile.",
+                details=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = serializer.save()
+        return Response(UserSummarySerializer(user).data, status=status.HTTP_200_OK)
+
+
+class SearchUsersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        query = (request.query_params.get("q") or "").strip()
+        if not query:
+            return Response([], status=status.HTTP_200_OK)
+
+        phone_fragment = "".join(
+            character for character in query if character.isdigit() or character == "+"
+        )
+
+        filters = (
+            Q(display_name__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+        )
+        if phone_fragment:
+            filters |= Q(phone_number_normalized__icontains=phone_fragment)
+
+        users = (
+            request.user.__class__.objects.filter(is_active=True)
+            .exclude(id=request.user.id)
+            .filter(filters)
+            .order_by("display_name", "phone_number_normalized")[:20]
+        )
+        return Response(
+            UserDiscoverySerializer(users, many=True).data,
+            status=status.HTTP_200_OK,
         )

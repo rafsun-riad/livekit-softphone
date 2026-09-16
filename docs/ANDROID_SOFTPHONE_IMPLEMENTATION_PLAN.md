@@ -1484,6 +1484,10 @@ Development guide:
 
 ### 26.4 Navigation structure
 
+- After login, the authenticated shell should use an Android-style bottom navigation bar with icons for the primary sections.
+- Primary bottom-nav tabs for MVP: Home, Contacts, Search, and Profile.
+- Settings remains a secondary signed-in screen reachable from Profile or Home rather than a fifth primary tab.
+
 ```text
 src/app/
   _layout.tsx
@@ -1491,11 +1495,12 @@ src/app/
     login.tsx
     register.tsx
   (app)/
-    index.tsx
-    contacts.tsx
-    search.tsx
-    profile.tsx
-    settings.tsx
+    _layout.tsx    # bottom-tab owner after login
+    index.tsx      # Home tab
+    contacts.tsx   # Contacts tab
+    search.tsx     # Search tab
+    profile.tsx    # Profile tab
+    settings.tsx   # secondary signed-in screen
     calls/
       outgoing.tsx
       incoming.tsx

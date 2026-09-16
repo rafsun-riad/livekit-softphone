@@ -30,3 +30,10 @@ export type LoginPayload = {
   password: string;
   deviceLabel?: string;
 };
+
+export type UpdateCurrentUserPayload = {
+  displayName: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+};

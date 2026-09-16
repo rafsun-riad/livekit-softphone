@@ -109,3 +109,79 @@ class AuthAPITests(APITestCase):
         self.assertEqual(me_response.status_code, status.HTTP_200_OK)
         self.assertEqual(me_response.data["display_name"], "Viewer")
         self.assertEqual(me_response.data["phone_number_normalized"], "+14155552671")
+
+    def test_patch_me_updates_profile_fields(self):
+        User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="viewer@example.com",
+            password="StrongPass123!",
+            display_name="Viewer",
+        )
+
+        login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access_token']}"
+        )
+        patch_response = self.client.patch(
+            reverse("users-me"),
+            {
+                "display_name": "Updated Viewer",
+                "first_name": "Updated",
+                "last_name": "User",
+                "email": "UPDATED@Example.com",
+            },
+            format="json",
+        )
+
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_response.data["display_name"], "Updated Viewer")
+        self.assertEqual(patch_response.data["first_name"], "Updated")
+        self.assertEqual(patch_response.data["last_name"], "User")
+        self.assertEqual(patch_response.data["email"], "updated@example.com")
+
+    def test_patch_me_rejects_duplicate_email(self):
+        User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="viewer@example.com",
+            password="StrongPass123!",
+            display_name="Viewer",
+        )
+        User.objects.create_user(
+            phone_number="+1 415 555 2672",
+            email="other@example.com",
+            password="StrongPass123!",
+            display_name="Other",
+        )
+
+        login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+            },
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access_token']}"
+        )
+        patch_response = self.client.patch(
+            reverse("users-me"),
+            {
+                "email": "other@example.com",
+            },
+            format="json",
+        )
+
+        self.assertEqual(patch_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(patch_response.data["code"], "profile_update_failed")

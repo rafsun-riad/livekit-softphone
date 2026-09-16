@@ -29,6 +29,7 @@ const config = {
       monochromeImage: branding.adaptiveMonochrome,
     },
     predictiveBackGestureEnabled: false,
+    softwareKeyboardLayoutMode: "resize",
   },
   web: {
     favicon: "./assets/favicon.png",
