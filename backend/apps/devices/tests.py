@@ -1,9 +1,21 @@
+from io import StringIO
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from apps.accounts.models import User
+from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Device, DevicePlatform, PushProvider
+from .services import (
+    DevicePushService,
+    PushSendResult,
+    build_firebase_service_account_info,
+)
 
 
 class DeviceAPITests(APITestCase):
@@ -129,3 +141,138 @@ class DeviceAPITests(APITestCase):
 
         self.assertEqual(delete_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(delete_response.data["code"], "device_not_found")
+
+    @patch(
+        "apps.devices.management.commands.send_test_push.DevicePushService.send_to_devices"
+    )
+    def test_send_test_push_management_command_uses_registered_device(self, send_mock):
+        device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            push_token="fcm-token-1",
+            app_version="1.0.0",
+            device_label="Pixel 8",
+        )
+        send_mock.return_value = PushSendResult(
+            success_count=1,
+            failure_count=0,
+            successful_tokens=["fcm-token-1"],
+            failed_tokens=[],
+            message_ids=["message-1"],
+        )
+
+        stdout = StringIO()
+        call_command(
+            "send_test_push",
+            str(device.id),
+            "--title=Incoming Call",
+            "--body=Tap to answer",
+            "--data=call_id=abc123",
+            "--dry-run",
+            stdout=stdout,
+        )
+
+        send_mock.assert_called_once()
+        self.assertIn("successes=1 failures=0", stdout.getvalue())
+
+
+class DevicePushServiceTests(SimpleTestCase):
+    @override_settings(FCM_PROJECT_ID="", FCM_CLIENT_EMAIL="", FCM_PRIVATE_KEY="")
+    def test_build_firebase_service_account_info_requires_configuration(self):
+        with self.assertRaises(ImproperlyConfigured):
+            build_firebase_service_account_info()
+
+    @override_settings(
+        FCM_ENABLED=True,
+        FCM_PROJECT_ID="livekit-softphone-mruhaq-6b385",
+        FCM_CLIENT_EMAIL="firebase-adminsdk@test-project.iam.gserviceaccount.com",
+        FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+    )
+    @patch("apps.devices.services.messaging")
+    @patch("apps.devices.services.credentials")
+    @patch("apps.devices.services.firebase_admin")
+    def test_send_to_devices_uses_firebase_multicast_and_filters_tokens(
+        self,
+        firebase_admin_mock,
+        credentials_mock,
+        messaging_mock,
+    ):
+        notification = object()
+        message = object()
+        app = object()
+
+        firebase_admin_mock.get_app.side_effect = ValueError("missing app")
+        firebase_admin_mock.initialize_app.return_value = app
+        credentials_mock.Certificate.return_value = object()
+        messaging_mock.Notification.return_value = notification
+        messaging_mock.MulticastMessage.return_value = message
+        messaging_mock.send_each_for_multicast.return_value = SimpleNamespace(
+            success_count=1,
+            failure_count=1,
+            responses=[
+                SimpleNamespace(success=True, message_id="msg-1"),
+                SimpleNamespace(success=False, message_id=None),
+            ],
+        )
+
+        devices = [
+            SimpleNamespace(
+                push_token="token-1",
+                push_provider=PushProvider.FCM,
+                is_active=True,
+            ),
+            SimpleNamespace(
+                push_token="token-2",
+                push_provider=PushProvider.FCM,
+                is_active=True,
+            ),
+            SimpleNamespace(
+                push_token="token-3",
+                push_provider=PushProvider.FCM,
+                is_active=False,
+            ),
+        ]
+
+        result = DevicePushService.send_to_devices(
+            devices=devices,
+            title="Incoming call",
+            body="Tap to answer",
+            data={"call_id": "abc123"},
+            dry_run=True,
+        )
+
+        credentials_mock.Certificate.assert_called_once_with(
+            {
+                "type": "service_account",
+                "project_id": "livekit-softphone-mruhaq-6b385",
+                "client_email": "firebase-adminsdk@test-project.iam.gserviceaccount.com",
+                "private_key": "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        )
+        messaging_mock.MulticastMessage.assert_called_once_with(
+            tokens=["token-1", "token-2"],
+            data={"call_id": "abc123"},
+            notification=notification,
+        )
+        messaging_mock.send_each_for_multicast.assert_called_once_with(
+            message,
+            dry_run=True,
+            app=app,
+        )
+        self.assertEqual(result.success_count, 1)
+        self.assertEqual(result.failure_count, 1)
+        self.assertEqual(result.successful_tokens, ["token-1"])
+        self.assertEqual(result.failed_tokens, ["token-2"])
+        self.assertEqual(result.message_ids, ["msg-1"])
+
+    @override_settings(FCM_ENABLED=True)
+    def test_send_to_devices_returns_empty_result_without_eligible_tokens(self):
+        result = DevicePushService.send_to_devices(devices=[])
+
+        self.assertEqual(result.success_count, 0)
+        self.assertEqual(result.failure_count, 0)
+        self.assertEqual(result.successful_tokens, [])
+        self.assertEqual(result.failed_tokens, [])
+        self.assertEqual(result.message_ids, [])

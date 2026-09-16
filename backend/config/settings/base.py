@@ -22,6 +22,24 @@ def env_list(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def env_str(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip()
+
+
+def env_multiline(name: str, default: str = "") -> str:
+    value = env_str(name, default)
+    if not value:
+        return default
+
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+
+    return value.replace("\\n", "\n")
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-before-production")
 DEBUG = env_bool("DEBUG", False)
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["127.0.0.1", "localhost"])
@@ -119,6 +137,11 @@ SIMPLE_JWT = {
 }
 
 DEVICE_SESSION_ROTATION = env_bool("DEVICE_SESSION_ROTATION", True)
+
+FCM_PROJECT_ID = env_str("FCM_PROJECT_ID")
+FCM_CLIENT_EMAIL = env_str("FCM_CLIENT_EMAIL")
+FCM_PRIVATE_KEY = env_multiline("FCM_PRIVATE_KEY")
+FCM_ENABLED = all([FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY])
 
 CHANNEL_LAYER_BACKEND = os.getenv("CHANNEL_LAYER_BACKEND", "inmemory")
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")

@@ -244,6 +244,11 @@ Completed items:
 - Registered the Android Firebase app for package `com.livekitsoftphone.mobile` and wired `mobile/google-services.json` into Expo config.
 - Added backend device registration and device invalidation endpoints for later push-token upload work.
 - Added a backend device list endpoint and surfaced registered devices plus Firebase project information in the mobile settings screen.
+- Installed the Firebase Admin Python SDK and added a backend FCM sending service that reads `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, and `FCM_PRIVATE_KEY` from the backend environment.
+- Added a `send_test_push` Django management command for dry-run or real FCM delivery checks against a registered device.
+- Installed `expo-notifications`, `expo-task-manager`, `expo-application`, `@react-native-firebase/app`, and `@react-native-firebase/messaging` in the mobile app.
+- Added mobile push-registration bootstrap code that requests notification permission, fetches the native device push token, registers it with `/api/devices/register/`, and surfaces the resulting backend device UUID in Settings.
+- Added Android-side Firebase messaging config in `mobile/firebase.json` and a background message handler scaffold in `mobile/index.ts`.
 
 Commands run:
 

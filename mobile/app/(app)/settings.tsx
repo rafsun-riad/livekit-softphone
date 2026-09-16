@@ -1,6 +1,13 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { ArrowLeft, LogOut, Server, ShieldCheck } from "lucide-react-native";
+import {
+  ArrowLeft,
+  BellRing,
+  LogOut,
+  RefreshCcw,
+  Server,
+  ShieldCheck,
+} from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
@@ -8,19 +15,43 @@ import { env } from "@/src/config/env";
 import { logout } from "@/src/features/auth/api";
 import { getDevices } from "@/src/features/devices/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { syncCurrentDeviceRegistration } from "@/src/lib/notifications/push-registration";
+import { applyManualPushSyncResult } from "@/src/providers/push-notifications-provider";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
+import type { PushState } from "@/src/stores/push-store";
+import { usePushStore } from "@/src/stores/push-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
 const FIREBASE_PROJECT_ID = "livekit-softphone-mruhaq-6b385";
 
 export default function SettingsScreen() {
+  const queryClient = useQueryClient();
   const clearSession = useAuthStore((state: AuthState) => state.clearSession);
   const session = useAuthStore((state: AuthState) => state.session);
+  const permissionStatus = usePushStore(
+    (state: PushState) => state.permissionStatus,
+  );
+  const registrationStatus = usePushStore(
+    (state: PushState) => state.registrationStatus,
+  );
+  const registeredDeviceId = usePushStore(
+    (state: PushState) => state.registeredDeviceId,
+  );
+  const lastError = usePushStore((state: PushState) => state.lastError);
+  const lastSyncedAt = usePushStore((state: PushState) => state.lastSyncedAt);
   const devicesQuery = useQuery({
     enabled: Boolean(session),
     queryFn: getDevices,
     queryKey: ["devices"],
+  });
+
+  const syncPushMutation = useMutation({
+    mutationFn: syncCurrentDeviceRegistration,
+    onSuccess: async (result) => {
+      applyManualPushSyncResult(result);
+      await queryClient.invalidateQueries({ queryKey: ["devices"] });
+    },
   });
 
   const logoutMutation = useMutation({
@@ -63,6 +94,45 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <BellRing color={appColors.cyanSoft} size={18} strokeWidth={2.2} />
+          <Text style={styles.sectionTitle}>Push registration</Text>
+        </View>
+        <Text style={styles.metaRow}>Permission: {permissionStatus}</Text>
+        <Text style={styles.metaRow}>Status: {registrationStatus}</Text>
+        <Text style={styles.metaRow}>
+          Backend device ID: {registeredDeviceId || "Not registered yet"}
+        </Text>
+        <Text style={styles.metaRow}>
+          Last sync:{" "}
+          {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : "Never"}
+        </Text>
+        {lastError ? <Text style={styles.errorText}>{lastError}</Text> : null}
+        {syncPushMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(syncPushMutation.error)}
+          </Text>
+        ) : null}
+        <Pressable
+          disabled={syncPushMutation.isPending || !session}
+          onPress={() => {
+            syncPushMutation.mutate();
+          }}
+          style={[
+            styles.secondaryAction,
+            syncPushMutation.isPending && styles.disabledAction,
+          ]}
+        >
+          <RefreshCcw color={appColors.textMuted} size={18} strokeWidth={2.2} />
+          <Text style={styles.secondaryLabel}>
+            {syncPushMutation.isPending
+              ? "Syncing push registration..."
+              : "Sync push registration"}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Configured endpoints</Text>
         <Text style={styles.metaLabel}>API</Text>
         <Text style={styles.metaValue}>{env.apiUrl || "Not configured"}</Text>
@@ -88,8 +158,8 @@ export default function SettingsScreen() {
         ) : null}
         {!devicesQuery.isLoading && !devicesQuery.data?.length ? (
           <Text style={styles.metaValue}>
-            No device registrations yet. This will populate after FCM token
-            upload is wired.
+            No device registrations yet. After push sync succeeds, this list
+            will show the backend UUID you can use for test pushes.
           </Text>
         ) : null}
         {devicesQuery.data?.map((device) => (
@@ -97,6 +167,7 @@ export default function SettingsScreen() {
             <Text style={styles.deviceTitle}>
               {device.device_label || `${device.platform} device`}
             </Text>
+            <Text style={styles.deviceMeta}>ID: {device.id}</Text>
             <Text style={styles.deviceMeta}>
               {device.platform} · {device.push_provider} · v{device.app_version}
             </Text>

@@ -24,7 +24,7 @@ Reference plan:
 ## Next Immediate Actions
 
 1. Run the first real-device Android install and development build check.
-2. Generate a Firebase service-account key in the browser console and copy its values into the backend environment before backend FCM sending work.
+2. Verify the mobile push-registration flow on hardware so the backend device UUID appears in Settings and can be used with `send_test_push`.
 3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
 4. Expand the contacts and directory UX on mobile and validate it on device.
 5. Prepare the WebSocket singleton path for Phase 7.
@@ -82,7 +82,7 @@ Remaining tasks:
 
 - Integrate LiveKit native dependencies.
 - Complete Firebase project, Android app registration, and config-file setup before wiring FCM delivery.
-- Integrate Firebase Messaging.
+- Extend the new Firebase Messaging foundation from token registration into foreground/background call-intent handling.
 - Integrate CallKeep.
 - Integrate Notifee.
 - Validate first real-device native build.
@@ -157,7 +157,7 @@ Dependencies:
 ## Active Blockers
 
 - Android build validation cannot proceed until an authorized Android phone appears in `adb devices`.
-- Firebase Android app registration is complete, but backend FCM sending still needs a service-account key from the Firebase Console.
+- Firebase Android app registration, backend FCM sending, and mobile token-registration code are in place; the remaining blocker is hardware validation of that path.
 
 ## Risks To Re-check During Execution
 

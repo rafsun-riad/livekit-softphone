@@ -4,6 +4,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
+import { PushNotificationsProvider } from "@/src/providers/push-notifications-provider";
 
 type AppProvidersProps = PropsWithChildren<{
   colorMode?: "light" | "dark" | "system";
@@ -29,7 +30,9 @@ export function AppProviders({
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <KeyboardProvider>
-          <GluestackUIProvider mode={colorMode}>{children}</GluestackUIProvider>
+          <GluestackUIProvider mode={colorMode}>
+            <PushNotificationsProvider>{children}</PushNotificationsProvider>
+          </GluestackUIProvider>
         </KeyboardProvider>
       </SafeAreaProvider>
     </QueryClientProvider>

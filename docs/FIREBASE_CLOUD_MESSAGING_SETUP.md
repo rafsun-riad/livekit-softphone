@@ -55,6 +55,16 @@ npx expo prebuild --platform android
    - `FCM_PROJECT_ID`
    - `FCM_CLIENT_EMAIL`
    - `FCM_PRIVATE_KEY`
+5. The backend now reads `FCM_PRIVATE_KEY` in the quoted multiline format with `\n` escapes and uses it to initialize the Firebase Admin SDK.
+
+## Step 5.1: Send a backend dry-run test
+
+Once at least one device row exists in the backend database, send a dry-run push with:
+
+```bash
+cd backend
+uv run python manage.py send_test_push <device_uuid> --dry-run --data call_id=test-call-1
+```
 
 ## Step 6: Register device push tokens
 

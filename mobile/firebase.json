@@ -1,0 +1,7 @@
+{
+  "react-native": {
+    "messaging_android_headless_task_timeout": 30000,
+    "messaging_android_notification_channel_id": "incoming-calls",
+    "messaging_android_notification_delegation_enabled": false
+  }
+}

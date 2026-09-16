@@ -8,6 +8,7 @@ dependencies = [
     "django-cors-headers>=4.9.0",
     "djangorestframework>=3.18,<3.19",
     "djangorestframework-simplejwt[crypto]>=5.5.1",
+    "firebase-admin>=7,<8",
     "livekit-api>=1.2.1",
     "phonenumbers>=9.0.39",
     "psycopg[binary]>=3.3.5",
