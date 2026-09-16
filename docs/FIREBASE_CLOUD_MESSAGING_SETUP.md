@@ -12,11 +12,17 @@ Set up Firebase so the Android app can receive push notifications for incoming c
 2. Create a new project for the softphone.
 3. Enable Cloud Messaging in the project.
 
+Current project created for this repository:
+
+- Firebase project ID: `livekit-softphone-mruhaq-6b385`
+- Android app ID: `1:633134433774:android:8cbb98edff42f8011e7aff`
+- Android package name: `com.livekitsoftphone.mobile`
+
 ## Step 2: Register the Android app
 
 1. Add an Android app inside the Firebase project.
 2. Use the Android application ID that will be configured in the Expo app.
-3. Download `google-services.json`.
+3. Download `google-services.json` or fetch it from the MCP config tool.
 4. Place it in `mobile/` and wire it through Expo config when native messaging setup begins.
 
 ## Step 3: Install the mobile packages

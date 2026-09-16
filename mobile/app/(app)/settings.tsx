@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { ArrowLeft, LogOut, Server, ShieldCheck } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -6,14 +6,22 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { env } from "@/src/config/env";
 import { logout } from "@/src/features/auth/api";
+import { getDevices } from "@/src/features/devices/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
+const FIREBASE_PROJECT_ID = "livekit-softphone-mruhaq-6b385";
+
 export default function SettingsScreen() {
   const clearSession = useAuthStore((state: AuthState) => state.clearSession);
   const session = useAuthStore((state: AuthState) => state.session);
+  const devicesQuery = useQuery({
+    enabled: Boolean(session),
+    queryFn: getDevices,
+    queryKey: ["devices"],
+  });
 
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -64,6 +72,39 @@ export default function SettingsScreen() {
         <Text style={styles.metaValue}>
           {env.livekitUrl || "Not configured"}
         </Text>
+        <Text style={styles.metaLabel}>Firebase project</Text>
+        <Text style={styles.metaValue}>{FIREBASE_PROJECT_ID}</Text>
+      </View>
+
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Registered devices</Text>
+        {devicesQuery.isLoading ? (
+          <Text style={styles.metaValue}>Loading device registrations...</Text>
+        ) : null}
+        {devicesQuery.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(devicesQuery.error)}
+          </Text>
+        ) : null}
+        {!devicesQuery.isLoading && !devicesQuery.data?.length ? (
+          <Text style={styles.metaValue}>
+            No device registrations yet. This will populate after FCM token
+            upload is wired.
+          </Text>
+        ) : null}
+        {devicesQuery.data?.map((device) => (
+          <View key={device.id} style={styles.deviceRow}>
+            <Text style={styles.deviceTitle}>
+              {device.device_label || `${device.platform} device`}
+            </Text>
+            <Text style={styles.deviceMeta}>
+              {device.platform} · {device.push_provider} · v{device.app_version}
+            </Text>
+            <Text style={styles.deviceMeta}>
+              {device.is_active ? "Active" : "Inactive"}
+            </Text>
+          </View>
+        ))}
       </View>
 
       {logoutMutation.isError ? (
@@ -200,6 +241,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  deviceRow: {
+    borderColor: appColors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  deviceTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  deviceMeta: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    lineHeight: 18,
   },
   errorText: {
     color: "#fca5a5",

@@ -241,6 +241,9 @@ Completed items:
 - Wrapped the mobile route shell in safe-area bounds and made the auth screens scrollable so smaller Android devices do not clip registration content.
 - Added mobile Profile and Settings screens so account editing and session controls now live inside the signed-in shell.
 - Firebase CLI login now succeeds for `mruhaquer@gmail.com`, but Firebase project creation is currently blocked by a Google-side `403 The caller does not have permission` response.
+- Registered the Android Firebase app for package `com.livekitsoftphone.mobile` and wired `mobile/google-services.json` into Expo config.
+- Added backend device registration and device invalidation endpoints for later push-token upload work.
+- Added a backend device list endpoint and surfaced registered devices plus Firebase project information in the mobile settings screen.
 
 Commands run:
 

@@ -24,7 +24,7 @@ Reference plan:
 ## Next Immediate Actions
 
 1. Run the first real-device Android install and development build check.
-2. Resolve Firebase project-creation permissions in the browser console, then complete Firebase project and Android app setup immediately after the Phase 2 device-build check.
+2. Generate a Firebase service-account key in the browser console and copy its values into the backend environment before backend FCM sending work.
 3. Add the remaining authentication support pieces such as session bootstrap polish and broader API abstractions.
 4. Expand the contacts and directory UX on mobile and validate it on device.
 5. Prepare the WebSocket singleton path for Phase 7.
@@ -129,6 +129,7 @@ Status: In progress
 Remaining tasks:
 
 - Add any remaining mobile polish around duplicate-contact feedback and empty states.
+- Connect the future push-token acquisition flow to the new mobile devices API surface.
 - Validate the contacts and directory flow on a real Android device.
 - Decide whether search should later include additional privacy-preserving filters or throttling.
 
@@ -156,7 +157,7 @@ Dependencies:
 ## Active Blockers
 
 - Android build validation cannot proceed until an authorized Android phone appears in `adb devices`.
-- Firebase CLI authentication is complete, but project creation is blocked by Google-side permissions on the provided account.
+- Firebase Android app registration is complete, but backend FCM sending still needs a service-account key from the Firebase Console.
 
 ## Risks To Re-check During Execution
 

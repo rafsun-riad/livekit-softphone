@@ -26,6 +26,7 @@ const config = {
   android: {
     backgroundColor: "#020617",
     package: "com.livekitsoftphone.mobile",
+    googleServicesFile: "./google-services.json",
     adaptiveIcon: {
       backgroundColor: "#020617",
       foregroundImage: branding.adaptiveForeground,

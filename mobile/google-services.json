@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "633134433774",
+    "project_id": "livekit-softphone-mruhaq-6b385",
+    "storage_bucket": "livekit-softphone-mruhaq-6b385.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:633134433774:android:8cbb98edff42f8011e7aff",
+        "android_client_info": {
+          "package_name": "com.livekitsoftphone.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD57rwjl9VlMYTGM8Yrlpe4ZV29TV3c-74"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
