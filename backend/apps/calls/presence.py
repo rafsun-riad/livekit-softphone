@@ -3,7 +3,7 @@ from __future__ import annotations
 from apps.contacts.models import Contact, ContactStatus
 from channels.db import database_sync_to_async
 
-from .realtime import broadcast_user_event
+from .realtime import broadcast_user_event_async
 
 
 @database_sync_to_async
@@ -25,7 +25,7 @@ async def broadcast_presence_change(*, user, event_type: str) -> None:
         "phone_number_normalized": user.phone_number_normalized,
     }
     for subscriber_id in subscriber_ids:
-        broadcast_user_event(
+        await broadcast_user_event_async(
             user_id=subscriber_id,
             event_type=event_type,
             payload=payload,

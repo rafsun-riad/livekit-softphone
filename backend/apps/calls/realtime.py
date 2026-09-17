@@ -9,6 +9,23 @@ def user_group_name(user_id) -> str:
     return f"user_{user_id}"
 
 
+async def broadcast_user_event_async(
+    *, user_id, event_type: str, payload: dict
+) -> None:
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+
+    await channel_layer.group_send(
+        user_group_name(user_id),
+        {
+            "type": "dispatch.event",
+            "event_type": event_type,
+            "payload": payload,
+        },
+    )
+
+
 def broadcast_user_event(*, user_id, event_type: str, payload: dict) -> None:
     channel_layer = get_channel_layer()
     if channel_layer is None:
