@@ -22,6 +22,12 @@ const config = {
     backgroundColor: "#020617",
     supportsTablet: true,
     bundleIdentifier: "com.livekitsoftphone.mobile",
+    infoPlist: {
+      NSCameraUsageDescription:
+        "LiveKit Softphone uses the camera during video calls.",
+      NSMicrophoneUsageDescription:
+        "LiveKit Softphone uses the microphone during calls.",
+    },
   },
   android: {
     backgroundColor: "#020617",
@@ -33,6 +39,19 @@ const config = {
       monochromeImage: branding.adaptiveMonochrome,
     },
     predictiveBackGestureEnabled: false,
+    permissions: [
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.CAMERA",
+      "android.permission.CHANGE_NETWORK_STATE",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_CAMERA",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.RECORD_AUDIO",
+      "android.permission.USE_FULL_SCREEN_INTENT",
+    ],
     softwareKeyboardLayoutMode: "resize",
   },
   web: {
@@ -40,6 +59,19 @@ const config = {
   },
   plugins: [
     "expo-router",
+    "./plugins/with-notifee-android",
+    [
+      "@livekit/react-native-expo-plugin",
+      {
+        android: {
+          audioType: "communication",
+        },
+        ios: {
+          enableMultitaskingCameraAccess: false,
+        },
+      },
+    ],
+    "@config-plugins/react-native-webrtc",
     "expo-secure-store",
     [
       "expo-notifications",

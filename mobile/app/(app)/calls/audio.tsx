@@ -1,24 +1,86 @@
 import { useEffect, useState } from "react";
 
+import {
+  useConnectionState,
+  useLocalParticipant,
+  useRoomContext,
+} from "@livekit/react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { LiveKitCallRoom } from "@/src/components/calls/livekit-call-room";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { endCall, getCall, joinMedia } from "@/src/features/calls/api";
 import { normalizeCallIdParam } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { requestCallMediaPermissions } from "@/src/lib/calls/media-permissions";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
+
+function AudioCallMediaPanel({ isMuted }: { isMuted: boolean }) {
+  const connectionState = useConnectionState();
+  const room = useRoomContext();
+  const { localParticipant, lastMicrophoneError } = useLocalParticipant();
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void localParticipant
+      .setMicrophoneEnabled(!isMuted)
+      .then(() => {
+        if (isActive) {
+          setLocalError(null);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          setLocalError(
+            error instanceof Error
+              ? error.message
+              : "Unable to update microphone state.",
+          );
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isMuted, localParticipant]);
+
+  return (
+    <View style={styles.statusCard}>
+      <Text style={styles.statusTitle}>Live audio session</Text>
+      <Text style={styles.statusBody}>
+        Connection: {connectionState} · Participants:{" "}
+        {room.remoteParticipants.size + 1}
+      </Text>
+      <Text style={styles.statusBody}>
+        Microphone: {isMuted ? "Muted locally" : "Publishing live audio"}
+      </Text>
+      {localError || lastMicrophoneError ? (
+        <Text style={styles.errorText}>
+          {localError ?? lastMicrophoneError?.message}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export default function AudioCallScreen() {
   const params = useLocalSearchParams<{ callId?: string | string[] }>();
   const callId = normalizeCallIdParam(params.callId);
   const [isMuted, setIsMuted] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<
+    "unknown" | "granted" | "denied"
+  >("unknown");
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const session = useAuthStore((state: AuthState) => state.session);
   const activeCall = useCallStore((state) =>
     state.activeCall?.id === callId ? state.activeCall : null,
@@ -99,6 +161,26 @@ export default function AudioCallScreen() {
 
     if (
       ["accepted", "connecting", "connected"].includes(call.state) &&
+      permissionStatus === "unknown"
+    ) {
+      void requestCallMediaPermissions("audio").then((result) => {
+        if (result.granted) {
+          setPermissionStatus("granted");
+          setPermissionError(null);
+          return;
+        }
+
+        setPermissionStatus("denied");
+        setPermissionError(
+          `Microphone access is required for audio calls. Missing: ${result.missingPermissions.join(", ")}.`,
+        );
+      });
+      return;
+    }
+
+    if (
+      ["accepted", "connecting", "connected"].includes(call.state) &&
+      permissionStatus === "granted" &&
       mediaSession?.callId !== call.id &&
       !joinMediaMutation.isPending
     ) {
@@ -108,6 +190,7 @@ export default function AudioCallScreen() {
     call,
     clearActiveCall,
     joinMediaMutation,
+    permissionStatus,
     mediaSession?.callId,
     upsertCall,
   ]);
@@ -136,13 +219,42 @@ export default function AudioCallScreen() {
       <View style={styles.statusCard}>
         <Text style={styles.statusTitle}>Media session</Text>
         <Text style={styles.statusBody}>
-          {joinMediaMutation.isPending
-            ? "Authorizing media access..."
-            : mediaSession?.callId === call.id
-              ? `Authorized via ${mediaSession.provider} at ${mediaSession.serverUrl}`
-              : "Waiting to authorize media access."}
+          {permissionStatus !== "granted"
+            ? permissionStatus === "denied"
+              ? "Microphone access is not granted yet."
+              : "Requesting microphone access..."
+            : joinMediaMutation.isPending
+              ? "Authorizing media access..."
+              : mediaSession?.callId === call.id
+                ? `Authorized via ${mediaSession.provider} at ${mediaSession.serverUrl}`
+                : "Waiting to authorize media access."}
         </Text>
       </View>
+
+      {permissionStatus === "denied" ? (
+        <Pressable
+          onPress={() => {
+            setPermissionStatus("unknown");
+            setPermissionError(null);
+          }}
+          style={styles.permissionButton}
+        >
+          <Text style={styles.permissionButtonLabel}>
+            Grant microphone access
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {permissionStatus === "granted" && mediaSession?.callId === call.id ? (
+        <LiveKitCallRoom
+          callType="audio"
+          mediaSession={mediaSession}
+          onMediaError={setMediaError}
+          speakerEnabled={speakerEnabled}
+        >
+          <AudioCallMediaPanel isMuted={isMuted} />
+        </LiveKitCallRoom>
+      ) : null}
 
       <View style={styles.controlsRow}>
         <Pressable
@@ -184,6 +296,10 @@ export default function AudioCallScreen() {
           {getAPIErrorMessage(callQuery.error)}
         </Text>
       ) : null}
+      {permissionError ? (
+        <Text style={styles.errorText}>{permissionError}</Text>
+      ) : null}
+      {mediaError ? <Text style={styles.errorText}>{mediaError}</Text> : null}
       {joinMediaMutation.isError ? (
         <Text style={styles.errorText}>
           {getAPIErrorMessage(joinMediaMutation.error)}
@@ -263,6 +379,22 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
     lineHeight: 20,
+  },
+  permissionButton: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: appColors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  permissionButtonLabel: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    fontWeight: "700",
   },
   controlsRow: {
     flexDirection: "row",

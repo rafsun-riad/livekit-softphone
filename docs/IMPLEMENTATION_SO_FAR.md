@@ -20,11 +20,15 @@ Reference plan:
 - Phase 4 backend foundation is complete with the custom user model, core domain models, generated migrations, and a successful PostgreSQL migration run.
 - Phase 5 authentication is in progress with working backend auth endpoints, profile editing, and the first mobile secure-session flow.
 - Phase 6 contacts and search is in progress with backend discovery and contact endpoints plus first mobile contacts and search screens.
+- Phase 3 native calling foundation is now implemented in code with LiveKit React Native, React Native WebRTC, CallKeep, Notifee, and Expo plugin wiring added to the mobile app.
 - Django admin access is unblocked again: superuser creation now works with the custom phone-based user model, and all current backend models are registered in the admin site.
 - Push-notification testing now has backend device-discovery helpers, a real registered device row, and a successful backend FCM dry-run send.
 - A real Android device is now detected by Expo, and the previous Firebase manifest merge failure in the Android build was resolved by removing the conflicting Expo notification-color manifest entry.
 - The Android debug build now completes successfully, the generated APK installs over USB on the connected device, and the app package accepts a direct adb launch intent.
 - Backend call APIs, websocket signaling, presence events, join-media authorization, and the first mobile outgoing or incoming or active call screens are now implemented in code and pass structural validation.
+- Active audio and video call screens now request runtime microphone and camera access, connect to real LiveKit rooms, publish local tracks, and render live remote or local video on device builds.
+- Background and terminated incoming-call handling now includes FCM background parsing, CallKeep incoming-call presentation, Notifee incoming-call notifications, and backend-backed native answer or reject actions using the persisted device session.
+- Backend call tests now cover create, accept, reject, cancel, join-media, end, and presence fanout behavior.
 
 ## Completed Phases
 
@@ -196,6 +200,43 @@ Blockers resolved:
 - Resolved the Firebase default-notification-color manifest conflict between Expo Notifications and React Native Firebase Messaging.
 - Resolved the first end-to-end Android build and install validation for the current mobile baseline.
 
+### Phase 3: Native Calling Foundation
+
+Status: Implemented in code, final hardware validation pending
+
+Completed items:
+
+- Installed `livekit-client`, `@livekit/react-native`, `@livekit/react-native-webrtc`, `@livekit/react-native-expo-plugin`, `@config-plugins/react-native-webrtc`, `@notifee/react-native`, and `react-native-callkeep`.
+- Added Expo config-plugin wiring and Android permission declarations for LiveKit, WebRTC, CallKeep, and Notifee.
+- Registered LiveKit globals during app startup.
+- Added a reusable LiveKit room wrapper that configures and starts the mobile audio session before connecting.
+- Replaced placeholder active-call media cards with real LiveKit audio and video session wiring.
+- Added runtime Android microphone and camera permission requests for active call entry.
+- Added CallKeep and Notifee native incoming-call handling, including FCM background message to native UI handoff and persisted-session-backed accept or reject actions.
+- Added a local Expo config plugin to keep the Notifee Android Maven repository available during Expo prebuild regeneration.
+
+Commands run:
+
+- `cd mobile && npx expo install livekit-client @livekit/react-native @livekit/react-native-webrtc @livekit/react-native-expo-plugin @config-plugins/react-native-webrtc @notifee/react-native react-native-callkeep`
+- `cd mobile && npx tsc --noEmit`
+- `cd mobile && npx expo export --platform android`
+- `cd mobile && npx expo prebuild --platform android --no-install`
+- `cd mobile/android && ./gradlew app:assembleDebug -x lint -x test --configure-on-demand --build-cache -PreactNativeDevServerPort=8081 -PreactNativeArchitectures=arm64-v8a`
+
+Decisions made:
+
+- Use `LiveKitRoom` plus LiveKit hooks rather than a custom WebRTC abstraction so the audio and video transport surface stays close to the supported SDK.
+- Keep Android runtime AV permissions explicit at call entry rather than requesting them on app launch.
+- Use CallKeep for system incoming-call UI and Notifee for Android incoming-call notification actions and background event delivery.
+
+Deviations from plan:
+
+- Added a small local Expo config plugin under `mobile/plugins/` to preserve the Notifee Android Maven repository during prebuild.
+
+Blockers resolved:
+
+- Resolved the initial Android Notifee dependency-resolution failure for `app.notifee:core` by adding the local Maven repository to the generated Android build and to the Expo prebuild path.
+
 ### Phase 4: Backend Foundation
 
 Status: Complete
@@ -337,7 +378,7 @@ Open follow-up notes:
 
 ### Phase 7: WebSocket and Presence
 
-Status: Implemented in code, validation pending beyond structural checks
+Status: Implemented in code, backend coverage added
 
 Completed items:
 
@@ -359,7 +400,7 @@ Decisions made:
 
 ### Phase 8: LiveKit Join Flow
 
-Status: Implemented in code, device validation pending
+Status: Implemented in code, backend coverage added
 
 Completed items:
 
@@ -373,35 +414,35 @@ Decisions made:
 
 ### Phase 9: Audio Calling
 
-Status: Implemented in code, manual and hardware validation pending
+Status: Implemented in code with real LiveKit audio transport
 
 Completed items:
 
 - Added backend call creation, detail, accept, reject, cancel, end, busy, and timed-out lifecycle handling.
 - Added mobile outgoing, incoming, and active audio-call screens.
+- Replaced the active audio-call placeholder state with a real LiveKit audio room connection, local microphone control, audio-session startup, and speaker or earpiece routing.
 - Added audio-call actions from the contacts screen and active-call return handling on the home screen.
 
 ### Phase 10: Video Calling
 
-Status: Implemented in code, manual and hardware validation pending
+Status: Implemented in code with real LiveKit video transport
 
 Completed items:
 
-- Added a mobile active video-call screen with call-state-driven media authorization flow and local control UI.
+- Added a mobile active video-call screen with call-state-driven media authorization flow, real camera publishing, remote video rendering, and local preview.
 
 ### Phase 11: Background and Terminated Incoming Calls
 
-Status: Partially implemented
+Status: Implemented in code, hardware validation pending
 
 Completed items:
 
 - Added incoming-call push payload generation on the backend.
 - Added notification tap parsing and fallback incoming-call routing on mobile.
 - Added background message parsing so incoming-call payloads are recognized by the app runtime.
-
-Remaining gap in code:
-
-- Native full-screen incoming-call UI through CallKeep and Notifee is still pending.
+- Added CallKeep setup, native incoming-call presentation, and native answer or end event listeners.
+- Added Notifee incoming-call notifications plus background and foreground action handling.
+- Added background call accept or reject execution using the stored device session.
 
 ### Phase 12: Hardening and Verification
 
@@ -411,10 +452,12 @@ Completed items:
 
 - Added busy and timed-out server call states to the active lifecycle path.
 - Added structural validation for backend checks, ASGI boot, mobile typecheck, and Expo Android export.
+- Added backend call API tests for create, accept, reject, cancel, join-media, and end.
+- Added presence test stabilization for async event fanout.
 
 Remaining gap in code:
 
-- Dedicated backend call tests and manual multi-device call verification are still pending.
+- Multi-device hardware validation and final native Android assemble confirmation are still pending.
 
 ### Phase 6: Contacts and Search
 
@@ -489,6 +532,8 @@ Use this section for high-signal commands worth preserving for future reference.
 - `cd backend && uv run python manage.py send_test_push d5d6a2e7-f100-47c0-8302-ac69f6abaa37 --dry-run --data call_id=test-call-1`
 - `cd mobile && npx expo prebuild --platform android --no-install`
 - `cd mobile/android && ./gradlew -version`
+- `cd mobile && npx expo install livekit-client @livekit/react-native @livekit/react-native-webrtc @livekit/react-native-expo-plugin @config-plugins/react-native-webrtc @notifee/react-native react-native-callkeep`
+- `cd backend && uv run python manage.py test apps.calls -v 2`
 
 ## Open Questions Already Answered
 

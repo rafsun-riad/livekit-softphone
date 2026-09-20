@@ -16,18 +16,18 @@ Reference plan:
 
 - Phase 0 is complete.
 - Phase 1 is complete.
-- Phase 2 is in progress.
+- Phase 2 is complete in code and awaiting final hardware reconfirmation only.
+- Phase 3 is complete in code and awaiting final hardware reconfirmation only.
 - Phase 4 is complete.
-- Phase 5 is in progress.
-- Phase 6 is in progress.
+- Phase 5 is complete in code and awaiting final hardware reconfirmation only.
+- Phase 6 is complete in code and awaiting final hardware reconfirmation only.
+- Phases 7 through 12 are implemented in code and now primarily blocked on final build and manual validation.
 
 ## Next Immediate Actions
 
-1. Manually validate the new call lifecycle end to end across two signed-in devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout paths.
-2. Replace the current media-authorization call screens with fully wired LiveKit room connection and rendering on device.
-3. Add dedicated backend call tests and mobile call-flow tests for the newly implemented signaling and call state surfaces.
-4. Finish the native Android incoming-call layer with CallKeep and Notifee for full-screen background and terminated handling.
-5. Harden the websocket and reconnect path under real token expiry and network loss conditions.
+1. Finish the current Android debug assemble validation and confirm the generated build installs and launches cleanly with the new LiveKit, CallKeep, and Notifee dependencies.
+2. Manually validate the end-to-end call lifecycle across two signed-in Android devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout.
+3. Manually validate real audio and video media flow, runtime camera and microphone permission prompts, and background or terminated incoming-call handling on hardware.
 
 ## Remaining Phases
 
@@ -62,13 +62,11 @@ Dependencies:
 
 ### Phase 2: Mobile Foundation
 
-Status: In progress
+Status: Complete in code
 
 Remaining tasks:
 
-- Confirm the installed Android app launches correctly and reaches the login or signed-in flow on hardware.
-- Confirm debug APK generation path and install workflow.
-- Confirm the generated Android project installs and launches on a real device, including the updated keyboard-aware auth screens.
+- Reconfirm the regenerated Android project installs and launches on hardware after the new native calling dependencies are added.
 
 Dependencies:
 
@@ -76,15 +74,11 @@ Dependencies:
 
 ### Phase 3: Native Calling Foundation
 
-Status: Pending
+Status: Complete in code
 
 Remaining tasks:
 
-- Integrate LiveKit native dependencies.
-- Extend the new Firebase Messaging foundation from token registration into foreground/background call-intent handling.
-- Integrate CallKeep.
-- Integrate Notifee.
-- Validate first real-device native build.
+- Confirm the current native dependency set assembles cleanly and behaves correctly on hardware.
 
 Dependencies:
 
@@ -104,15 +98,11 @@ Dependencies:
 
 ### Phase 5: Authentication
 
-Status: In progress
+Status: Complete in code
 
 Remaining tasks:
 
-- Add any missing authentication edge-case tests.
-- Integrate the new `useAPI.ts` abstraction further as later feature modules are added.
-- Add mobile auth UX polish for loading, empty, and failure states.
-- Verify the secure session flow on a real Android device.
-- Verify that local-phone admin login and `createsuperuser` remain correct in the real environment after the next backend auth changes.
+- Reconfirm the secure session flow on the current Android device while testing background call actions.
 
 Dependencies:
 
@@ -124,14 +114,11 @@ Status: Mixed
 
 ### Phase 6: Contacts and Search
 
-Status: In progress
+Status: Complete in code
 
 Remaining tasks:
 
-- Add any remaining mobile polish around duplicate-contact feedback and empty states.
-- Connect the future push-token acquisition flow to the new mobile devices API surface and confirm it creates `Device` rows on hardware.
-- Validate the contacts and directory flow on a real Android device.
-- Decide whether search should later include additional privacy-preserving filters or throttling.
+- Reconfirm the contacts and directory flow on hardware as part of the two-device call validation path.
 
 Dependencies:
 
@@ -139,14 +126,11 @@ Dependencies:
 
 ### Phase 7 to Phase 12
 
-Status: Pending
+Status: Implemented in code
 
 Remaining tasks:
 
-- Real-device validation of websocket and presence
-- LiveKit media transport integration inside the active call screens
-- Full incoming-call native Android UX with CallKeep and Notifee
-- Hardening and final verification
+- Final build validation, real-device verification, and bug-fix follow-up only.
 
 Dependencies:
 
@@ -154,7 +138,7 @@ Dependencies:
 
 ## Active Blockers
 
-- Live device registration and backend FCM dry-run validation now work; the remaining blockers are end-to-end multi-device call validation, LiveKit media transport hookup, and native full-screen incoming-call UX.
+- The feature implementation blockers are cleared in code. The remaining blockers are final Android native assemble confirmation and two-device hardware validation.
 
 ## Risks To Re-check During Execution
 

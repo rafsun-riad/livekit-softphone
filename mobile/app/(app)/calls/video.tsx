@@ -1,24 +1,159 @@
 import { useEffect, useState } from "react";
 
+import {
+  isTrackReference,
+  useConnectionState,
+  useLocalParticipant,
+  useRoomContext,
+  useTracks,
+  VideoTrack,
+} from "@livekit/react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { Track } from "livekit-client";
 import { Camera, CameraOff, Mic, MicOff, PhoneOff } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { LiveKitCallRoom } from "@/src/components/calls/livekit-call-room";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { endCall, getCall, joinMedia } from "@/src/features/calls/api";
 import { normalizeCallIdParam } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { requestCallMediaPermissions } from "@/src/lib/calls/media-permissions";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
+
+function VideoCallMediaPanel({
+  cameraEnabled,
+  isMuted,
+}: {
+  cameraEnabled: boolean;
+  isMuted: boolean;
+}) {
+  const connectionState = useConnectionState();
+  const room = useRoomContext();
+  const {
+    cameraTrack,
+    isCameraEnabled,
+    isMicrophoneEnabled,
+    lastCameraError,
+    lastMicrophoneError,
+    localParticipant,
+  } = useLocalParticipant();
+  const tracks = useTracks([
+    { source: Track.Source.Camera, withPlaceholder: true },
+  ]);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const localTrack = tracks.find(
+    (trackRef) => isTrackReference(trackRef) && trackRef.participant.isLocal,
+  );
+  const remoteTrack = tracks.find(
+    (trackRef) => isTrackReference(trackRef) && !trackRef.participant.isLocal,
+  );
+
+  useEffect(() => {
+    let isActive = true;
+
+    void Promise.all([
+      localParticipant.setCameraEnabled(cameraEnabled),
+      localParticipant.setMicrophoneEnabled(!isMuted),
+    ])
+      .then(() => {
+        if (isActive) {
+          setLocalError(null);
+        }
+      })
+      .catch((error) => {
+        if (isActive) {
+          setLocalError(
+            error instanceof Error
+              ? error.message
+              : "Unable to update local media state.",
+          );
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [cameraEnabled, isMuted, localParticipant]);
+
+  return (
+    <>
+      <View style={styles.videoStage}>
+        <View style={styles.remoteTile}>
+          {remoteTrack && isTrackReference(remoteTrack) ? (
+            <VideoTrack
+              objectFit="cover"
+              style={styles.videoTrack}
+              trackRef={remoteTrack}
+            />
+          ) : (
+            <View style={styles.placeholderWrap}>
+              <Text style={styles.tileLabel}>Remote stream</Text>
+              <Text style={styles.tileBody}>
+                Waiting for the other participant to publish video.
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.localTile}>
+          {localTrack && isTrackReference(localTrack) ? (
+            <VideoTrack
+              mirror
+              objectFit="cover"
+              style={styles.localVideoTrack}
+              trackRef={localTrack}
+            />
+          ) : (
+            <View style={styles.placeholderWrap}>
+              <Text style={styles.tileLabel}>Local preview</Text>
+              <Text style={styles.tileBody}>
+                {cameraEnabled ? "Starting camera preview..." : "Camera paused"}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.statusCard}>
+        <Text style={styles.statusTitle}>Live video session</Text>
+        <Text style={styles.statusBody}>
+          Connection: {connectionState} · Participants:{" "}
+          {room.remoteParticipants.size + 1}
+        </Text>
+        <Text style={styles.statusBody}>
+          Camera: {isCameraEnabled ? "Publishing" : "Paused"} · Microphone:{" "}
+          {isMicrophoneEnabled ? "Publishing" : "Muted"}
+        </Text>
+        <Text style={styles.statusBody}>
+          Local camera track: {cameraTrack ? "Ready" : "Waiting"}
+        </Text>
+        {localError || lastCameraError || lastMicrophoneError ? (
+          <Text style={styles.errorText}>
+            {localError ??
+              lastCameraError?.message ??
+              lastMicrophoneError?.message}
+          </Text>
+        ) : null}
+      </View>
+    </>
+  );
+}
 
 export default function VideoCallScreen() {
   const params = useLocalSearchParams<{ callId?: string | string[] }>();
   const callId = normalizeCallIdParam(params.callId);
   const [isMuted, setIsMuted] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<
+    "unknown" | "granted" | "denied"
+  >("unknown");
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const session = useAuthStore((state: AuthState) => state.session);
   const activeCall = useCallStore((state) =>
     state.activeCall?.id === callId ? state.activeCall : null,
@@ -99,6 +234,26 @@ export default function VideoCallScreen() {
 
     if (
       ["accepted", "connecting", "connected"].includes(call.state) &&
+      permissionStatus === "unknown"
+    ) {
+      void requestCallMediaPermissions("video").then((result) => {
+        if (result.granted) {
+          setPermissionStatus("granted");
+          setPermissionError(null);
+          return;
+        }
+
+        setPermissionStatus("denied");
+        setPermissionError(
+          `Camera and microphone access are required for video calls. Missing: ${result.missingPermissions.join(", ")}.`,
+        );
+      });
+      return;
+    }
+
+    if (
+      ["accepted", "connecting", "connected"].includes(call.state) &&
+      permissionStatus === "granted" &&
       mediaSession?.callId !== call.id &&
       !joinMediaMutation.isPending
     ) {
@@ -108,6 +263,7 @@ export default function VideoCallScreen() {
     call,
     clearActiveCall,
     joinMediaMutation,
+    permissionStatus,
     mediaSession?.callId,
     upsertCall,
   ]);
@@ -133,22 +289,47 @@ export default function VideoCallScreen() {
       </Text>
       <Text style={styles.subtitle}>Call state: {call.state}</Text>
 
-      <View style={styles.videoStage}>
-        <View style={styles.remoteTile}>
-          <Text style={styles.tileLabel}>Remote stream</Text>
-          <Text style={styles.tileBody}>
-            {mediaSession?.callId === call.id
-              ? `Authorized via ${mediaSession.provider}`
-              : "Waiting for media authorization"}
-          </Text>
-        </View>
-        <View style={styles.localTile}>
-          <Text style={styles.tileLabel}>Local preview</Text>
-          <Text style={styles.tileBody}>
-            {cameraEnabled ? "Camera enabled" : "Camera paused"}
-          </Text>
-        </View>
+      <View style={styles.statusCard}>
+        <Text style={styles.statusTitle}>Media session</Text>
+        <Text style={styles.statusBody}>
+          {permissionStatus !== "granted"
+            ? permissionStatus === "denied"
+              ? "Camera and microphone access are not granted yet."
+              : "Requesting camera and microphone access..."
+            : joinMediaMutation.isPending
+              ? "Authorizing media access..."
+              : mediaSession?.callId === call.id
+                ? `Authorized via ${mediaSession.provider} at ${mediaSession.serverUrl}`
+                : "Waiting to authorize media access."}
+        </Text>
       </View>
+
+      {permissionStatus === "denied" ? (
+        <Pressable
+          onPress={() => {
+            setPermissionStatus("unknown");
+            setPermissionError(null);
+          }}
+          style={styles.permissionButton}
+        >
+          <Text style={styles.permissionButtonLabel}>
+            Grant camera and microphone access
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {permissionStatus === "granted" && mediaSession?.callId === call.id ? (
+        <LiveKitCallRoom
+          callType="video"
+          mediaSession={mediaSession}
+          onMediaError={setMediaError}
+        >
+          <VideoCallMediaPanel
+            cameraEnabled={cameraEnabled}
+            isMuted={isMuted}
+          />
+        </LiveKitCallRoom>
+      ) : null}
 
       <View style={styles.controlsRow}>
         <Pressable
@@ -186,6 +367,10 @@ export default function VideoCallScreen() {
           {getAPIErrorMessage(callQuery.error)}
         </Text>
       ) : null}
+      {permissionError ? (
+        <Text style={styles.errorText}>{permissionError}</Text>
+      ) : null}
+      {mediaError ? <Text style={styles.errorText}>{mediaError}</Text> : null}
       {joinMediaMutation.isError ? (
         <Text style={styles.errorText}>
           {getAPIErrorMessage(joinMediaMutation.error)}
@@ -246,6 +431,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   remoteTile: {
+    overflow: "hidden",
     backgroundColor: "#111827",
     borderColor: appColors.border,
     borderRadius: 24,
@@ -261,9 +447,22 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     minHeight: 120,
+    overflow: "hidden",
     paddingHorizontal: 16,
     paddingVertical: 16,
     width: "48%",
+  },
+  videoTrack: {
+    height: "100%",
+    width: "100%",
+  },
+  localVideoTrack: {
+    height: "100%",
+    width: "100%",
+  },
+  placeholderWrap: {
+    flex: 1,
+    justifyContent: "center",
   },
   tileLabel: {
     color: appColors.textPrimary,
@@ -277,6 +476,44 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
     lineHeight: 20,
+  },
+  statusCard: {
+    backgroundColor: appColors.surface,
+    borderColor: appColors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  statusTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  statusBody: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  permissionButton: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: appColors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  permissionButtonLabel: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    fontWeight: "700",
   },
   controlsRow: {
     flexDirection: "row",

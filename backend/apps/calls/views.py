@@ -130,12 +130,7 @@ class CallJoinMediaView(APIView):
             )
 
         serialized = JoinMediaResponseSerializer(
-            {
-                **payload,
-                "call": CallSerializer(
-                    payload["call"],
-                    context={"request": request},
-                ).data,
-            }
+            payload,
+            context={"request": request, "viewer": request.user},
         )
         return Response(serialized.data, status=status.HTTP_200_OK)
