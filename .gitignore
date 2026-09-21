@@ -22,3 +22,6 @@ mobile/ios/
 # OS and editor noise
 .DS_Store
 .vscode/
+
+backend/staticfiles/
+backend/media/
