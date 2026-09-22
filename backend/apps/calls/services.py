@@ -83,6 +83,32 @@ def _record_event(
     )
 
 
+def _timeout_all_stale_ringing_calls() -> None:
+    """
+    Find and timeout all ringing calls that have exceeded the ring timeout.
+    This proactively cleans up stale calls that are no longer being actively checked.
+    """
+    now = timezone.now()
+    timeout_threshold = now - timedelta(seconds=settings.CALL_RING_TIMEOUT_SECONDS)
+
+    # Find all ringing calls that started before the timeout threshold
+    stale_calls = Call.objects.filter(
+        state=CallState.RINGING,
+        ringing_at__lte=timeout_threshold,
+    )
+
+    for call in stale_calls:
+        call.state = CallState.TIMED_OUT
+        call.ended_at = now
+        call.end_reason = "not_answered"
+        call.save(update_fields=["state", "ended_at", "end_reason", "updated_at"])
+        _record_event(call=call, event_type="call.timeout", actor_user=None)
+        # Emit timeout event to both participants
+        transaction.on_commit(
+            lambda c=call: _emit_call_payload(call=c, event_type="call.timeout")
+        )
+
+
 def _timeout_call_if_stale(call: Call) -> Call:
     if call.state != CallState.RINGING or call.ringing_at is None:
         return call
@@ -93,7 +119,7 @@ def _timeout_call_if_stale(call: Call) -> Call:
 
     call.state = CallState.TIMED_OUT
     call.ended_at = timezone.now()
-    call.end_reason = CallState.TIMED_OUT
+    call.end_reason = "not_answered"
     call.save(update_fields=["state", "ended_at", "end_reason", "updated_at"])
     _record_event(call=call, event_type="call.timeout", actor_user=None)
     transaction.on_commit(
@@ -119,6 +145,9 @@ def _get_call_for_user(*, call_id, user: User) -> Call:
 
 
 def _ensure_not_in_conflicting_call(*, user: User) -> None:
+    # First, timeout any stale ringing calls to ensure they don't block new calls
+    _timeout_all_stale_ringing_calls()
+
     has_conflict = (
         Call.objects.filter(state__in=ACTIVE_CALL_STATES)
         .filter(Q(initiator=user) | Q(recipient=user))
@@ -164,6 +193,9 @@ class CallService:
             )
 
         _ensure_not_in_conflicting_call(user=initiator)
+
+        # Also timeout stale calls for the recipient before checking for conflicts
+        _timeout_all_stale_ringing_calls()
 
         recipient_has_conflict = (
             Call.objects.filter(state__in=ACTIVE_CALL_STATES)

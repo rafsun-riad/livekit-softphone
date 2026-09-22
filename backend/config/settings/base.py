@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "channels",
+    "django_celery_beat",
     "apps.accounts",
     "apps.contacts",
     "apps.devices",
@@ -145,7 +146,7 @@ SIMPLE_JWT = {
 DEVICE_SESSION_ROTATION = env_bool("DEVICE_SESSION_ROTATION", True)
 LIVEKIT_URL = env_str("LIVEKIT_URL")
 LIVEKIT_TOKEN_TTL_MINUTES = int(os.getenv("LIVEKIT_TOKEN_TTL_MINUTES", "15"))
-CALL_RING_TIMEOUT_SECONDS = int(os.getenv("CALL_RING_TIMEOUT_SECONDS", "45"))
+CALL_RING_TIMEOUT_SECONDS = int(os.getenv("CALL_RING_TIMEOUT_SECONDS", "30"))
 
 FCM_PROJECT_ID = env_str("FCM_PROJECT_ID")
 FCM_CLIENT_EMAIL = env_str("FCM_CLIENT_EMAIL")
@@ -168,3 +169,18 @@ else:
             "BACKEND": "channels.layers.InMemoryChannelLayer",
         }
     }
+
+# Celery Configuration
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+
+# Celery Beat scheduler
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
