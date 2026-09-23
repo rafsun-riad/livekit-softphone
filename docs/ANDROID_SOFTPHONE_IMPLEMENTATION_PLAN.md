@@ -2,6 +2,13 @@
 
 Status: Planning only. Do not implement from this document until it has been reviewed and approved.
 
+Planning note:
+
+- The repository is no longer aligned only to this original MVP plan.
+- The active communication-product addendum is `docs/COMMUNICATION_APP_REPLAN.md`.
+- The concise product-scope summary for that addendum is `docs/PROPOSED_FEATURE_LIST.md`.
+- Use this document as the foundational softphone architecture reference, especially for backend/provider separation and call infrastructure decisions.
+
 Primary target: Android first
 
 Scope of this plan:

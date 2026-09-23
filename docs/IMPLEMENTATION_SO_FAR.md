@@ -11,9 +11,12 @@ Purpose:
 Reference plan:
 
 - See `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md` for the authoritative design and execution plan.
+- See `docs/COMMUNICATION_APP_REPLAN.md` for the approved communication-first addendum that will drive the next major implementation wave.
+- See `docs/PROPOSED_FEATURE_LIST.md` for the concise communication feature inventory tied to that addendum.
 
 ## Current Summary
 
+- A communication-first replan has now been saved in `docs/COMMUNICATION_APP_REPLAN.md`, with the scope summary in `docs/PROPOSED_FEATURE_LIST.md`, for review before messaging, call-history, contacts-sync, and NativeWind migration work begins.
 - Phase 0 environment verification is complete.
 - Phase 1 repository bootstrap is complete.
 - Phase 2 mobile foundation is functionally complete in code and verified through Android export and prebuild, with keyboard-safe screens and a bottom-tab app shell in place, and only real-device install validation still pending.

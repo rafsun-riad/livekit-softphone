@@ -11,9 +11,12 @@ Purpose:
 Reference plan:
 
 - See `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md` for the authoritative design and execution plan.
+- See `docs/COMMUNICATION_APP_REPLAN.md` for the active communication-first addendum that now defines the next implementation phase.
+- See `docs/PROPOSED_FEATURE_LIST.md` for the concise feature inventory under that addendum.
 
 ## Current Overall State
 
+- A new communication-first replan is now saved for review, with a matching feature list summary. Messaging, calls-list redesign, contacts-sync redesign, and NativeWind migration should follow those documents once approved.
 - Phase 0 is complete.
 - Phase 1 is complete.
 - Phase 2 is complete in code and awaiting final hardware reconfirmation only.
@@ -25,9 +28,10 @@ Reference plan:
 
 ## Next Immediate Actions
 
-1. Finish the current Android debug assemble validation and confirm the generated build installs and launches cleanly with the new LiveKit, CallKeep, and Notifee dependencies.
-2. Manually validate the end-to-end call lifecycle across two signed-in Android devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout.
-3. Manually validate real audio and video media flow, runtime camera and microphone permission prompts, and background or terminated incoming-call handling on hardware.
+1. Review `docs/COMMUNICATION_APP_REPLAN.md` and `docs/PROPOSED_FEATURE_LIST.md` together and confirm the communication-first product direction before implementation starts.
+2. Finish the current Android debug assemble validation and confirm the generated build installs and launches cleanly with the new LiveKit, CallKeep, and Notifee dependencies.
+3. Manually validate the end-to-end call lifecycle across two signed-in Android devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout.
+4. Manually validate real audio and video media flow, runtime camera and microphone permission prompts, and background or terminated incoming-call handling on hardware.
 
 ## Remaining Phases
 
