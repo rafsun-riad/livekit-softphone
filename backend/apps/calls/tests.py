@@ -8,6 +8,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from .models import CallEvent
 from .presence import broadcast_presence_change
 
 
@@ -250,3 +251,56 @@ class CallAPITests(APITestCase):
 
         self.assertEqual(join_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(join_response.data["code"], "call_not_found")
+
+    @patch("apps.calls.services.send_incoming_call_push")
+    @patch("apps.calls.services.broadcast_user_event")
+    def test_join_media_is_idempotent_for_same_participant(
+        self,
+        _broadcast_mock,
+        _push_mock,
+    ):
+        self.authenticate(self.caller)
+        create_response = self.client.post(
+            reverse("calls-create"),
+            {
+                "recipient_user_id": str(self.callee.id),
+                "call_type": "audio",
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        call_id = create_response.data["id"]
+
+        self.authenticate(self.callee)
+        accept_response = self.client.post(
+            reverse("calls-accept", args=[call_id]),
+            format="json",
+        )
+        self.assertEqual(accept_response.status_code, status.HTTP_200_OK)
+
+        with patch(
+            "apps.calls.services.AccessToken",
+            return_value=self.create_livekit_token_builder(),
+        ):
+            first_join_response = self.client.post(
+                reverse("calls-join-media", args=[call_id]),
+                format="json",
+            )
+            second_join_response = self.client.post(
+                reverse("calls-join-media", args=[call_id]),
+                format="json",
+            )
+
+        self.assertEqual(first_join_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_join_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_join_response.data["call"]["state"], "connecting")
+        self.assertEqual(second_join_response.data["call"]["state"], "connecting")
+        self.assertEqual(
+            CallEvent.objects.filter(
+                call_id=call_id,
+                event_type="call.join_media",
+                actor_user=self.callee,
+            ).count(),
+            1,
+        )

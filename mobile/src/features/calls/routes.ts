@@ -2,6 +2,13 @@ import type { Href } from "expo-router";
 
 import type { CallRecord } from "./types";
 
+type PendingOutgoingCallRouteParams = {
+  recipientUserId: string;
+  callType: "audio" | "video";
+  recipientName?: string;
+  recipientPhone?: string;
+};
+
 export function buildCallRoute(
   screen: "incoming" | "outgoing" | "audio" | "video",
   callId: string,
@@ -14,6 +21,22 @@ export function buildActiveCallRoute(call: CallRecord) {
     call.call_type === "video" ? "video" : "audio",
     call.id,
   );
+}
+
+export function buildPendingOutgoingCallRoute({
+  recipientUserId,
+  callType,
+  recipientName,
+  recipientPhone,
+}: PendingOutgoingCallRouteParams): Href {
+  const params = new URLSearchParams({
+    recipientUserId,
+    callType,
+    recipientName: recipientName ?? "",
+    recipientPhone: recipientPhone ?? "",
+  });
+
+  return `/(app)/calls/outgoing?${params.toString()}` as Href;
 }
 
 export function normalizeCallIdParam(value: string | string[] | undefined) {

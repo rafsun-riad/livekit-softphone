@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   isTrackReference,
@@ -17,6 +17,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LiveKitCallRoom } from "@/src/components/calls/livekit-call-room";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { endCall, getCall, joinMedia } from "@/src/features/calls/api";
+import { formatElapsedCallDuration } from "@/src/features/calls/duration";
 import { normalizeCallIdParam } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { requestCallMediaPermissions } from "@/src/lib/calls/media-permissions";
@@ -149,11 +150,13 @@ export default function VideoCallScreen() {
   const callId = normalizeCallIdParam(params.callId);
   const [isMuted, setIsMuted] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [permissionStatus, setPermissionStatus] = useState<
     "unknown" | "granted" | "denied"
   >("unknown");
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const joinAttemptCallIdRef = useRef<string | null>(null);
   const session = useAuthStore((state: AuthState) => state.session);
   const activeCall = useCallStore((state) =>
     state.activeCall?.id === callId ? state.activeCall : null,
@@ -188,6 +191,9 @@ export default function VideoCallScreen() {
 
   const joinMediaMutation = useMutation({
     mutationFn: joinMedia,
+    onError: () => {
+      joinAttemptCallIdRef.current = null;
+    },
     onSuccess: (payload) => {
       upsertCall(payload.call);
       setMediaSession({
@@ -210,8 +216,33 @@ export default function VideoCallScreen() {
   });
 
   const call = callQuery.data ?? activeCall;
+  const durationStartedAt = call?.connected_at ?? call?.accepted_at ?? null;
+  const durationLabel = formatElapsedCallDuration(durationStartedAt, clockNow);
 
   useEffect(() => {
+    if (!durationStartedAt) {
+      return;
+    }
+
+    setClockNow(Date.now());
+    const intervalId = setInterval(() => {
+      setClockNow(Date.now());
+    }, 1_000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [durationStartedAt]);
+
+  useEffect(() => {
+    if (
+      callId &&
+      joinAttemptCallIdRef.current &&
+      joinAttemptCallIdRef.current !== callId
+    ) {
+      joinAttemptCallIdRef.current = null;
+    }
+
     if (!call) {
       return;
     }
@@ -227,6 +258,7 @@ export default function VideoCallScreen() {
         "timed_out",
       ].includes(call.state)
     ) {
+      joinAttemptCallIdRef.current = null;
       clearActiveCall();
       router.replace("/");
       return;
@@ -255,8 +287,10 @@ export default function VideoCallScreen() {
       ["accepted", "connecting", "connected"].includes(call.state) &&
       permissionStatus === "granted" &&
       mediaSession?.callId !== call.id &&
+      joinAttemptCallIdRef.current !== call.id &&
       !joinMediaMutation.isPending
     ) {
+      joinAttemptCallIdRef.current = call.id;
       joinMediaMutation.mutate(call.id);
     }
   }, [
@@ -288,6 +322,9 @@ export default function VideoCallScreen() {
         {counterpart.display_name || counterpart.phone_number_normalized}
       </Text>
       <Text style={styles.subtitle}>Call state: {call.state}</Text>
+      {durationLabel ? (
+        <Text style={styles.subtitle}>Duration: {durationLabel}</Text>
+      ) : null}
 
       <View style={styles.statusCard}>
         <Text style={styles.statusTitle}>Media session</Text>
@@ -322,6 +359,9 @@ export default function VideoCallScreen() {
         <LiveKitCallRoom
           callType="video"
           mediaSession={mediaSession}
+          onError={(error) => {
+            setMediaError(error.message);
+          }}
           onMediaError={setMediaError}
         >
           <VideoCallMediaPanel

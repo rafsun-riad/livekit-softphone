@@ -46,7 +46,7 @@ Example `mobile/.env`:
 ```env
 EXPO_PUBLIC_API_URL=https://your-reachable-api-host.example.com
 EXPO_PUBLIC_WS_URL=wss://your-reachable-api-host.example.com
-EXPO_PUBLIC_LIVEKIT_URL=ws://202.51.182.173
+EXPO_PUBLIC_LIVEKIT_URL=ws://202.51.182.173:7880
 EXPO_PUBLIC_APP_ENV=development
 ```
 

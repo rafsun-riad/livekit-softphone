@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -6,9 +6,10 @@ import { PhoneOff } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
-import { cancelCall, getCall } from "@/src/features/calls/api";
+import { cancelCall, createCall, getCall } from "@/src/features/calls/api";
 import {
   buildActiveCallRoute,
+  buildCallRoute,
   normalizeCallIdParam,
 } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
@@ -16,8 +17,20 @@ import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
 export default function OutgoingCallScreen() {
-  const params = useLocalSearchParams<{ callId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    callId?: string | string[];
+    recipientUserId?: string | string[];
+    recipientName?: string | string[];
+    recipientPhone?: string | string[];
+    callType?: string | string[];
+  }>();
   const callId = normalizeCallIdParam(params.callId);
+  const recipientUserId = normalizeCallIdParam(params.recipientUserId);
+  const recipientName = normalizeCallIdParam(params.recipientName);
+  const recipientPhone = normalizeCallIdParam(params.recipientPhone);
+  const requestedCallType =
+    normalizeCallIdParam(params.callType) === "video" ? "video" : "audio";
+  const createAttemptedRef = useRef(false);
   const activeCall = useCallStore((state) =>
     state.activeCall?.id === callId ? state.activeCall : null,
   );
@@ -53,7 +66,27 @@ export default function OutgoingCallScreen() {
     },
   });
 
-  const call = callQuery.data ?? activeCall;
+  const createMutation = useMutation({
+    mutationFn: createCall,
+    onSuccess: (call) => {
+      upsertCall(call);
+      router.replace(buildCallRoute("outgoing", call.id));
+    },
+  });
+
+  const call = callQuery.data ?? activeCall ?? createMutation.data;
+
+  useEffect(() => {
+    if (callId || !recipientUserId || createAttemptedRef.current) {
+      return;
+    }
+
+    createAttemptedRef.current = true;
+    createMutation.mutate({
+      recipientUserId,
+      callType: requestedCallType,
+    });
+  }, [callId, createMutation, recipientUserId, requestedCallType]);
 
   useEffect(() => {
     if (!call) {
@@ -66,7 +99,7 @@ export default function OutgoingCallScreen() {
     }
   }, [call, upsertCall]);
 
-  if (!call) {
+  if (!call && !recipientUserId) {
     return (
       <AppScrollScreen centerContent contentContainerStyle={styles.content}>
         <Text style={styles.helperText}>Loading call...</Text>
@@ -75,26 +108,43 @@ export default function OutgoingCallScreen() {
   }
 
   const calleeName =
-    call.recipient.display_name || call.recipient.phone_number_normalized;
+    call?.recipient.display_name ||
+    call?.recipient.phone_number_normalized ||
+    recipientName ||
+    recipientPhone ||
+    "Unknown contact";
+
+  const screenSubtitle = call
+    ? `Call state: ${call.state}`
+    : createMutation.isPending
+      ? `Starting ${requestedCallType} call...`
+      : `Unable to start ${requestedCallType} call`;
 
   return (
     <AppScrollScreen centerContent contentContainerStyle={styles.content}>
       <Text style={styles.kicker}>Outgoing</Text>
       <Text style={styles.title}>{calleeName}</Text>
-      <Text style={styles.subtitle}>Call state: {call.state}</Text>
+      <Text style={styles.subtitle}>{screenSubtitle}</Text>
       <View style={styles.heroCircle}>
         <Text style={styles.heroInitial}>
           {calleeName.slice(0, 1).toUpperCase()}
         </Text>
       </View>
       <Text style={styles.body}>
-        Waiting for the recipient to answer. If they accept, the app will move
-        into the active {call.call_type} call screen automatically.
+        {call
+          ? `Waiting for the recipient to answer. If they accept, the app will move into the active ${call.call_type} call screen automatically.`
+          : "Preparing the call screen first, then contacting the backend so call state and errors stay visible here."}
       </Text>
 
       {callQuery.isError ? (
         <Text style={styles.errorText}>
           {getAPIErrorMessage(callQuery.error)}
+        </Text>
+      ) : null}
+
+      {createMutation.isError ? (
+        <Text style={styles.errorText}>
+          {getAPIErrorMessage(createMutation.error)}
         </Text>
       ) : null}
 
@@ -105,15 +155,30 @@ export default function OutgoingCallScreen() {
       ) : null}
 
       <Pressable
-        disabled={cancelMutation.isPending || !call.can_cancel}
+        disabled={
+          createMutation.isPending ||
+          cancelMutation.isPending ||
+          Boolean(call && !call.can_cancel)
+        }
         onPress={() => {
-          cancelMutation.mutate(call.id);
+          if (call) {
+            cancelMutation.mutate(call.id);
+            return;
+          }
+
+          router.replace("/(app)/contacts");
         }}
         style={styles.endButton}
       >
         <PhoneOff color="#fff" size={18} strokeWidth={2.2} />
         <Text style={styles.endButtonLabel}>
-          {cancelMutation.isPending ? "Cancelling..." : "Cancel call"}
+          {createMutation.isPending
+            ? "Starting..."
+            : cancelMutation.isPending
+              ? "Cancelling..."
+              : call
+                ? "Cancel call"
+                : "Back to contacts"}
         </Text>
       </Pressable>
     </AppScrollScreen>

@@ -961,7 +961,7 @@ sequenceDiagram
 
 ### 16.8 Current development LiveKit host
 
-- Current development LiveKit host: `ws://202.51.182.173`
+- Current development LiveKit host: `ws://202.51.182.173:7880`
 - Use this only for development while LiveKit is hosted by IP address.
 - Treat this value as temporary and configurable. Do not hardcode it in the app.
 - When LiveKit moves to production, replace it with the production server URL behind dedicated DNS, and prefer `wss://` in production.
@@ -1305,7 +1305,7 @@ Use Expo standard environment variables with `EXPO_PUBLIC_` prefix for values us
 ```env
 EXPO_PUBLIC_API_URL=https://api-softphone.example.com
 EXPO_PUBLIC_WS_URL=wss://api-softphone.example.com
-EXPO_PUBLIC_LIVEKIT_URL=ws://202.51.182.173
+EXPO_PUBLIC_LIVEKIT_URL=ws://202.51.182.173:7880
 EXPO_PUBLIC_APP_ENV=development
 ```
 
@@ -1355,7 +1355,7 @@ FCM_PRIVATE_KEY=change-me
 
 Development note:
 
-- For the current development environment, `LIVEKIT_URL` and `EXPO_PUBLIC_LIVEKIT_URL` should point to `ws://202.51.182.173`.
+- For the current development environment, `LIVEKIT_URL` and `EXPO_PUBLIC_LIVEKIT_URL` should point to `ws://202.51.182.173:7880`.
 - When LiveKit is moved to production, switch both values to the production host with DNS and prefer `wss://`.
 
 Cloudflare Tunnel note:

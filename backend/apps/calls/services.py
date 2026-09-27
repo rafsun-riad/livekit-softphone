@@ -128,10 +128,13 @@ def _timeout_call_if_stale(call: Call) -> Call:
     return call
 
 
-def _get_call_for_user(*, call_id, user: User) -> Call:
+def _get_call_for_user(*, call_id, user: User, for_update: bool = False) -> Call:
+    queryset = Call.objects.select_related("initiator", "recipient")
+    if for_update:
+        queryset = queryset.select_for_update()
+
     call = (
-        Call.objects.select_related("initiator", "recipient")
-        .filter(id=call_id)
+        queryset.filter(id=call_id)
         .filter(Q(initiator=user) | Q(recipient=user))
         .first()
     )
@@ -388,7 +391,7 @@ class CallService:
     @staticmethod
     @transaction.atomic
     def join_media(*, call_id, user: User) -> dict[str, object]:
-        call = _get_call_for_user(call_id=call_id, user=user)
+        call = _get_call_for_user(call_id=call_id, user=user, for_update=True)
         if not settings.LIVEKIT_URL:
             raise CallServiceError(
                 code="media_not_configured",
@@ -407,23 +410,33 @@ class CallService:
             )
 
         now = timezone.now()
-        if call.state == CallState.ACCEPTED:
-            call.state = CallState.CONNECTING
-            call.save(update_fields=["state", "updated_at"])
+        participant_already_joined = CallEvent.objects.filter(
+            call=call,
+            event_type="call.join_media",
+            actor_user=user,
+        ).exists()
 
-        _record_event(call=call, event_type="call.join_media", actor_user=user)
+        should_emit_update = False
+        if not participant_already_joined:
+            if call.state == CallState.ACCEPTED:
+                call.state = CallState.CONNECTING
+                call.save(update_fields=["state", "updated_at"])
+                should_emit_update = True
 
-        joined_count = (
-            CallEvent.objects.filter(call=call, event_type="call.join_media")
-            .exclude(actor_user__isnull=True)
-            .values("actor_user")
-            .distinct()
-            .count()
-        )
-        if joined_count >= 2 and call.state != CallState.CONNECTED:
-            call.state = CallState.CONNECTED
-            call.connected_at = now
-            call.save(update_fields=["state", "connected_at", "updated_at"])
+            _record_event(call=call, event_type="call.join_media", actor_user=user)
+
+            joined_count = (
+                CallEvent.objects.filter(call=call, event_type="call.join_media")
+                .exclude(actor_user__isnull=True)
+                .values("actor_user")
+                .distinct()
+                .count()
+            )
+            if joined_count >= 2 and call.state != CallState.CONNECTED:
+                call.state = CallState.CONNECTED
+                call.connected_at = now
+                call.save(update_fields=["state", "connected_at", "updated_at"])
+                should_emit_update = True
 
         participant_identity = f"participant_{user.id.hex}_{call.id.hex}"
         token = (
@@ -443,9 +456,10 @@ class CallService:
             .to_jwt()
         )
 
-        transaction.on_commit(
-            lambda: _emit_call_payload(call=call, event_type="call.updated")
-        )
+        if should_emit_update:
+            transaction.on_commit(
+                lambda: _emit_call_payload(call=call, event_type="call.updated")
+            )
         return {
             "provider": call.provider,
             "server_url": settings.LIVEKIT_URL,

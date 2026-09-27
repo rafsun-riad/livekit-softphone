@@ -4,8 +4,7 @@ import { PhoneCall, Trash2, UserRoundSearch, Video } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
-import { createCall } from "@/src/features/calls/api";
-import { buildCallRoute } from "@/src/features/calls/routes";
+import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { deleteContact, getContacts } from "@/src/features/contacts/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useCallStore } from "@/src/stores/call-store";
@@ -14,7 +13,6 @@ import { appColors, appTypography } from "@/src/theme/app-theme";
 export default function ContactsScreen() {
   const queryClient = useQueryClient();
   const onlineUsers = useCallStore((state) => state.onlineUsers);
-  const upsertCall = useCallStore((state) => state.upsertCall);
   const contactsQuery = useQuery({
     queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
@@ -24,14 +22,6 @@ export default function ContactsScreen() {
     mutationFn: deleteContact,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["contacts"] });
-    },
-  });
-
-  const callMutation = useMutation({
-    mutationFn: createCall,
-    onSuccess: (call) => {
-      upsertCall(call);
-      router.push(buildCallRoute("outgoing", call.id));
     },
   });
 
@@ -69,12 +59,6 @@ export default function ContactsScreen() {
         </Text>
       ) : null}
 
-      {callMutation.isError ? (
-        <Text style={styles.errorText}>
-          {getAPIErrorMessage(callMutation.error)}
-        </Text>
-      ) : null}
-
       {contactsQuery.isLoading ? (
         <Text style={styles.helperText}>Loading contacts...</Text>
       ) : null}
@@ -109,12 +93,15 @@ export default function ContactsScreen() {
             </Text>
           </View>
           <Pressable
-            disabled={callMutation.isPending}
             onPress={() => {
-              callMutation.mutate({
-                recipientUserId: contact.contact_user.id,
-                callType: "audio",
-              });
+              router.push(
+                buildPendingOutgoingCallRoute({
+                  recipientUserId: contact.contact_user.id,
+                  callType: "audio",
+                  recipientName: contact.contact_user.display_name,
+                  recipientPhone: contact.contact_user.phone_number_normalized,
+                }),
+              );
             }}
             style={styles.callButton}
           >
@@ -125,19 +112,22 @@ export default function ContactsScreen() {
             />
           </Pressable>
           <Pressable
-            disabled={callMutation.isPending}
             onPress={() => {
-              callMutation.mutate({
-                recipientUserId: contact.contact_user.id,
-                callType: "video",
-              });
+              router.push(
+                buildPendingOutgoingCallRoute({
+                  recipientUserId: contact.contact_user.id,
+                  callType: "video",
+                  recipientName: contact.contact_user.display_name,
+                  recipientPhone: contact.contact_user.phone_number_normalized,
+                }),
+              );
             }}
             style={styles.callButton}
           >
             <Video color={appColors.primarySoft} size={18} strokeWidth={2.2} />
           </Pressable>
           <Pressable
-            disabled={deleteMutation.isPending || callMutation.isPending}
+            disabled={deleteMutation.isPending}
             onPress={() => {
               deleteMutation.mutate(contact.id);
             }}
