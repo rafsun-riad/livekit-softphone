@@ -1,155 +1,321 @@
 # Communication App Replan
 
-Status: Draft for review
+Status: Reconciled planning document for review
 
 Purpose:
 
-- Re-plan the current Android softphone into a WhatsApp-style communication app.
-- Preserve the existing backend call-provider abstraction so future PortaOne and Asterisk integration remains possible.
-- Convert the approved product requirements into a concrete execution plan that fits the repository's current implemented state.
+- Re-plan the current Android softphone into a communication-first Android app.
+- Preserve the existing backend call-provider abstraction so future PortaOne, Asterisk, SIP, and PSTN integration remain possible.
+- Reconcile prior planning documents with the real repository state before the next implementation wave starts.
 
 Relationship to existing plan:
 
-- `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md` remains the foundational softphone architecture and backend/provider strategy document.
-- This document is the active addendum for the new communication-first product direction.
-- If this document conflicts with the earlier MVP plan, this document wins for messaging, contacts UX, tab layout, and app-shell behavior.
+- `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md` remains the original softphone architecture reference.
+- This document is now the active communication-product planning document.
+- If this document conflicts with earlier planning on messaging, lifecycle, navigation, push behavior, or contact policy, this document wins.
 
-## 1. Confirmed Product Decisions
+## 1. Executive Summary
 
-The following ambiguous points were clarified before this replan was saved:
+The repository already contains substantial backend and mobile calling foundations. Backend auth, device sessions, contacts, devices, call lifecycle APIs, Channels websocket signaling, Firebase Admin push delivery, and LiveKit token generation exist in code. Mobile already includes Expo Router navigation, SecureStore-backed auth persistence, authenticated API retry with refresh, websocket signaling, push registration, LiveKit audio and video call screens, CallKeep, Notifee, and background incoming-call handling.
 
-- End-to-end encryption is required in the first messaging release for text, image, video, and voice messages.
-- Unsaved app users are allowed to reach each other through both messages and calls.
-- Phone-contact discovery should upload normalized phone numbers to the backend for matching.
-- Avatar taps in the top app bar should open a compact menu with Profile and Settings.
+The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, phone-contact sync, and the approved three-tab product shell are not implemented. The current visible mobile shell is still `Home`, `Contacts`, `Search`, and `Profile`, not `Messages`, `Calls`, and `Contacts`.
 
-These decisions are now treated as implementation requirements, not open questions.
+Two lifecycle issues now block safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence yet, but the code exposes a strong root-cause hypothesis: websocket disconnects currently trigger session refresh and device-session token rotation on any disconnect, which can desynchronize persisted credentials from backend state. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
 
-## 2. Current Baseline
+The first implementation phase must therefore be architecture reconciliation plus authentication and lifecycle hardening. Messaging and E2EE should not begin until auth persistence, logout semantics, push and device linkage, and Android lifecycle reliability are stable and documented.
 
-The app is not greenfield anymore. The repo already includes:
+## 2. Repository Audit Findings
 
-- Mobile auth with durable device sessions and silent refresh.
-- Bottom-tab navigation via Expo Router.
-- Backend user, contacts, devices, and calls models.
-- Websocket signaling through Django Channels.
-- Firebase push delivery.
-- LiveKit calling flows and native Android incoming-call handling.
+### Backend
 
-The major missing product area is messaging. The current contacts and calls surfaces also need to be redesigned to match the new communication-first layout and behaviors.
+- The backend is a Django 6 codebase with a custom UUID-based user model under `backend/apps/accounts/`.
+- `DeviceSession` exists and is used as the durable mobile session credential.
+- JWT access tokens are issued through SimpleJWT and are separate from the device-session token.
+- Devices are stored separately from device sessions under `backend/apps/devices/`.
+- Calls are modeled and managed under `backend/apps/calls/` with provider support already represented by `Call.provider`.
+- Websocket signaling uses Django Channels with JWT-authenticated socket connections.
+- Firebase Admin push sending is implemented for registered devices.
+- Existing automated tests cover auth basics, devices basics, and call lifecycle basics.
 
-## 3. New Target Experience
+### Mobile
 
-Only three tabs should appear in the bottom navigation:
+- The mobile app uses Expo Router under `mobile/app/`.
+- Auth persistence uses Zustand plus `expo-secure-store`.
+- Authenticated requests use a retry-on-401 refresh path.
+- Push registration uses Expo Notifications plus React Native Firebase Messaging.
+- Background call actions already reuse the persisted device session.
+- Realtime calling and presence are handled through a singleton websocket provider.
+- LiveKit audio and video call screens already exist and are tied into call APIs.
 
-1. Messages
-2. Calls
-3. Contacts
+### Current Product State
 
-All other destinations should move behind hidden routes or the avatar menu.
+- Messaging does not exist in backend or mobile.
+- Phone-contact sync does not exist.
+- Unknown-user messaging and calling do not exist.
+- Block and unblock policy is not implemented end to end.
+- The approved three-tab shell does not exist yet.
 
-### 3.1 Messages tab
+## 3. Documentation vs Code Discrepancies
 
-- Top app bar title: `Messages`
-- Top-right action: small avatar that opens a compact menu with Profile and Settings.
-- Below the top bar: a search bar for filtering conversations by contact name.
-- Main body: conversation list similar to WhatsApp.
-- Bottom-right floating action button: start a new conversation.
-- Conversation thread must support:
-  - text messages
-  - image messages
-  - video messages
-  - voice messages
-- Push notifications must behave like a modern messaging app while keeping encrypted content private.
+- Earlier planning documents describe durable device sessions and silent refresh as already solved. Code mostly supports that claim, but there is no dedicated startup bootstrap flow that validates or refreshes auth before opening the private app shell.
+- Earlier planning implies the communication-product shell is largely aligned. The real mobile shell is not aligned with the approved `Messages`, `Calls`, `Contacts` experience.
+- Earlier tracking documents overstate project completeness for the new communication-app scope. Messaging, E2EE, contact sync, unknown-user policy, block enforcement, and lifecycle hardening remain unimplemented.
+- Earlier docs do not capture the current logout and device-registration gap, the likely duplicate incoming-call notification risk, or the need to distinguish Android background, swipe-away, process death, force-stop, and reboot states explicitly.
 
-### 3.2 Calls tab
+## 4. Current Architecture
 
-- Top app bar title: `Calls`
-- Top-right action: avatar menu
-- Below the top bar: a search bar for filtering call history
-- Main body: searchable call history list
-- Bottom-right floating action button: start a new call from contacts
-
-### 3.3 Contacts tab
-
-- Top app bar title: `Contacts`
-- Top-right action: avatar menu
-- Main body: matched app users from saved phone contacts plus app-managed contacts
-- Bottom-right floating action button: create a new contact
-- New-contact flow must:
-  - validate whether the number belongs to an app user
-  - allow naming and saving the contact
-  - allow choosing whether to also sync the saved contact into the phone address book
-- Contact detail must support:
-  - view details
-  - send message
-  - start audio call
-  - start video call
-  - block
-  - unblock
-
-### 3.4 Unknown sender behavior
-
-- If user A has saved user B but user B has not saved user A, B must still be able to receive the incoming call or message.
-- In the conversation thread and relevant call-entry surfaces, B must see actions to save the contact or block the contact.
-- If blocked, future message delivery, future call initiation, and related notifications must be suppressed at the backend rule layer.
-
-## 4. Architecture Delta From Current System
-
-The current system already has the right foundations for auth, realtime delivery, device registration, call signaling, and push delivery. The plan is to add a messaging domain and extend the current app shell rather than replace the existing architecture.
-
-### 4.1 High-level target system
+### 4.1 Existing system shape
 
 ```mermaid
 flowchart LR
-  A[Android App\nExpo Router + NativeWind] -->|HTTPS| B[Django REST API]
-  A -->|WSS| C[Channels Signaling Socket]
-  A -->|Encrypted Media Upload| D[Django Media Storage]
-  B --> E[PostgreSQL]
-  B --> F[FCM Push Service]
-  C --> E
-  B --> G[LiveKit]
-  F --> A
+  M[Expo Android App] -->|HTTPS| API[Django REST API]
+  M -->|WSS| WS[Channels Signaling Socket]
+  API --> DB[PostgreSQL]
+  API --> FCM[Firebase Admin Push Service]
+  API --> LK[LiveKit]
+  FCM --> M
+  M -->|WebRTC| LK
 ```
 
-### 4.2 Future provider boundary
+### 4.2 Provider boundary
 
 ```mermaid
 flowchart TD
-  M[Mobile Client] --> API[Django Control Plane]
-  API --> CALLS[Call Service Layer]
+  APP[Mobile App] --> CONTROL[Django Control Plane]
+  CONTROL --> CALLS[Call Service Layer]
   CALLS --> LK[LiveKit Provider]
   CALLS --> AST[Future Asterisk Provider]
   CALLS --> P1[Future PortaOne Provider]
-  API --> MSG[Messaging Service Layer]
-  API --> CONTACTS[Contacts and Sync Layer]
+  CONTROL --> MSG[Future Messaging Layer]
+  CONTROL --> CONTACTS[Contacts and Sync Layer]
 ```
 
-Why this remains correct:
+### 4.3 Existing implementation anchors
 
-- Mobile stays provider-agnostic for telephony.
-- Messaging is not tied to any telephony provider.
-- Calls and messaging can share contacts, push, auth, and realtime transport.
+- Auth and device sessions: `backend/apps/accounts/`
+- Devices and push registration: `backend/apps/devices/`
+- Calls, signaling, and LiveKit token generation: `backend/apps/calls/`
+- Mobile auth store: `mobile/src/stores/auth-store.ts`
+- Mobile API refresh path: `mobile/src/lib/api/client.ts`
+- Mobile realtime and native incoming-call behavior: `mobile/src/providers/realtime-provider.tsx` and `mobile/src/lib/calls/native-call-ui.ts`
 
-## 5. Messaging Architecture
+## 5. Existing Features That Must Be Preserved
 
-### 5.1 Recommendation
+- Custom user model and phone-based authentication
+- Device-session-backed mobile authentication
+- Backend `register`, `login`, `refresh`, `logout`, and `me` endpoints
+- Device register, list, and delete endpoints
+- Firebase Admin push delivery service
+- Call provider abstraction and LiveKit join-media flow
+- Channels websocket signaling and presence fanout
+- Mobile SecureStore persistence
+- Mobile CallKeep and Notifee incoming-call handling
+- Mobile LiveKit audio and video calling
+- Future provider compatibility for PortaOne, Asterisk, SIP, and PSTN
 
-Because first release requires encrypted text, image, video, and voice plus offline delivery, this plan recommends a Signal-style 1:1 protocol boundary rather than a custom static ECDH scheme.
+## 6. New Product Requirements
 
-Required properties:
+- Replace the visible app shell with `Messages`, `Calls`, and `Contacts`.
+- Add 1:1 text, image, video, and voice messaging.
+- Ship first-release E2EE for all message types.
+- Support unknown users messaging and calling each other unless blocked.
+- Add save-contact and block actions for unknown senders and callers.
+- Add phone-contact synchronization and backend matching.
+- Preserve existing calling flows and integrate them into the new shell.
+- Ensure persistent login behavior feels like a modern messaging app.
+- Support incoming notifications for supported foreground, background, and terminated states.
+- Respect Android screen timeout outside of properly scoped call-only wake behavior.
 
-- private keys never leave the device
-- backend stores only public key bundles and encrypted payloads
-- each sent message can be delivered while the recipient is offline
-- message content previews are not leaked to push notifications
-- encrypted media keys are stored alongside message envelopes, not in plaintext
+## 7. Authentication Lifecycle Findings
 
-### 5.2 Backend data model additions
+### Current behavior from code
 
-Create a new Django app: `backend/apps/messaging/`
+- `DeviceSession` stores a hashed token, timestamps, label, and revocation fields.
+- There is no explicit expiry on `DeviceSession`.
+- Login creates a new device session and returns a JWT access token plus raw device-session token.
+- Refresh validates the stored device-session token and rotates it by default.
+- Logout revokes only the provided device session.
+- Mobile stores `access_token`, `device_session_token`, and user summary in SecureStore.
+- Mobile route guards wait for auth-store hydration before redirecting.
+- Mobile protected API calls silently refresh only after a `401`.
+- Websocket reconnect logic also attempts silent refresh.
 
-Core models:
+### Meaning for target behavior
+
+- Durable login is architecturally intended.
+- Startup validation is incomplete because there is no dedicated auth bootstrap flow.
+- Expired access tokens can recover, but only when a refresh-triggering path runs.
+- Revoked device sessions clear local state correctly once refresh is attempted.
+
+## 8. Device Session / Silent Refresh Bug Analysis
+
+### Observed behavior
+
+- Reported production-like behavior: a user closes the app and reopens it, then appears logged out.
+
+### Current implementation
+
+- SecureStore hydration runs in the root layout.
+- Private route access depends on whether the hydrated store still contains a session.
+- Protected API requests attempt refresh on `401`.
+- Websocket disconnects also trigger refresh if a session exists.
+
+### Expected behavior
+
+```text
+App launch
+  -> loading state
+  -> hydrate persisted device session
+  -> validate or refresh access token
+  -> fetch current user
+  -> initialize realtime and push state
+  -> open private routes
+```
+
+### Root-cause hypothesis
+
+The strongest code-based hypothesis is that websocket disconnects trigger device-session refresh and token rotation during ordinary backgrounding, shutdown, or network churn. If rotation succeeds server-side but the newly rotated device-session token is not durably persisted before process suspension, the stored token becomes stale and the next refresh attempt fails, clearing auth state.
+
+### Evidence required
+
+- Reproduce on physical Android hardware for normal close, swipe-away, process kill, access-token expiry, and device reboot.
+- Instrument mobile logs for hydration, refresh attempts, token updates, websocket status transitions, and `clearSession` calls.
+- Inspect backend `DeviceSession.rotated_at` behavior during reproduction.
+
+### Proposed fix
+
+- Add a dedicated mobile auth bootstrap coordinator.
+- Stop rotating device-session tokens on generic websocket disconnects.
+- Refresh only on startup bootstrap and explicit `401` recovery paths.
+- Persist refreshed credentials before reconnecting realtime.
+
+### Regression tests
+
+- Startup restore with valid session
+- Startup restore with expired access token and valid device session
+- Startup restore with revoked device session
+- Explicit logout
+- Socket disconnect without forced logout
+- Token rotation persistence after refresh
+
+### Manual verification
+
+- Login, close, reopen
+- Login, let access token expire, reopen
+- Login, swipe from recents, reopen
+- Login, kill process, reopen
+- Login, revoke server-side device session, reopen
+- Login, logout, reopen
+
+## 9. Android Screen Timeout Bug Analysis
+
+### Audit result so far
+
+- No explicit `FLAG_KEEP_SCREEN_ON`, `android:keepScreenOn`, wake-lock code, `expo-keep-awake` usage, or `react-native-keep-awake` usage was found in the mobile source or generated Android app source.
+- The repository currently does not prove an app-wide keep-awake bug.
+
+### Investigation focus
+
+- LiveKit audio and video runtime behavior
+- CallKeep and Notifee full-screen incoming-call behavior
+- Generated Android activity and window flags after prebuild
+- Call-only native behavior during active audio and video calls
+
+### Desired lifecycle behavior
+
+- Normal browsing: system timeout applies normally.
+- Messages: system timeout applies normally.
+- Contacts: system timeout applies normally.
+- Calls: any keep-awake behavior, if required, must be scoped to the active call state only and released immediately afterward.
+
+### Evidence required
+
+- Physical Android testing during idle browsing, ringing call, connected audio call, connected video call, and post-call idle state.
+- `adb dumpsys` validation during those states.
+
+## 10. FCM Lifecycle and Notification Analysis
+
+### Current implementation
+
+- Backend stores devices separately from device sessions.
+- Mobile push registration runs only after authentication and permission grant.
+- Current push channel setup is call-oriented.
+- Background FCM handling currently parses call intents only.
+
+### Current gaps
+
+- No message-notification architecture exists.
+- Device rows are not linked to device sessions or installation identity.
+- Logout does not invalidate the device push registration.
+- The same physical push token can remain active under more than one account unless separately invalidated.
+
+### Duplicate-handler risk
+
+Incoming-call pushes currently appear to use both backend notification text/body and mobile-side native incoming-call rendering. That must be reconciled to avoid duplicate surfaces.
+
+### Android state distinctions that must be documented
+
+- App backgrounded
+- App swiped from recents
+- Process killed by Android
+- Force-stopped from Settings
+- Device rebooted
+- Battery optimization restrictions
+- OEM background restrictions
+- Notification permission denied
+- FCM token rotated
+- App data cleared
+- User logged out
+
+### Supported-behavior rule
+
+The final implementation plan must document what Android and FCM reliably support and what they do not. Force-stop behavior and some OEM restrictions must be documented as platform limitations, not promised away.
+
+## 11. Incoming Call Lifecycle
+
+The existing stack already includes meaningful incoming-call support:
+
+- Backend call creation and push dispatch
+- FCM background handling in mobile app startup code
+- Notifee incoming-call notification actions
+- CallKeep incoming-call UI
+- Persisted-session-backed background accept and reject behavior
+- Initial-notification and initial-call-intent routing on app open
+
+This architecture should be preserved. The next work is to verify lifecycle reliability, remove duplication risk, and ensure the auth lifecycle changes do not regress terminated incoming-call behavior.
+
+## 12. E2EE Architecture Gate
+
+Messaging must not be implemented as a plaintext server-side message relay and then retrofitted later. E2EE is a hard architecture gate.
+
+### Required decisions
+
+- Device identity and user identity model
+- Per-device public and private key lifecycle
+- Multi-device support for one account
+- Reinstall and compromised-device behavior
+- Logout and device revocation behavior
+- Encrypted media strategy
+- Safe push payload strategy
+- Protocol and library selection
+
+### Gate requirement
+
+Before full messaging implementation starts, prove the following on working code:
+
+```text
+device A encrypts
+-> server stores ciphertext only
+-> device B decrypts
+```
+
+No custom cryptographic protocol should be invented.
+
+## 13. Messaging Architecture
+
+### Backend
+
+Create `backend/apps/messaging/` with models for:
 
 - `Conversation`
 - `ConversationParticipantState`
@@ -160,96 +326,14 @@ Core models:
 - `SignedPreKey`
 - `OneTimePreKey`
 
-Suggested shape:
+### Delivery rules
 
-```python
-from apps.common.models import UUIDTimeStampedModel
-from django.conf import settings
-from django.db import models
+- REST remains the primary write and fetch path.
+- Existing websocket infrastructure should be extended with message event families.
+- Push should wake offline recipients without exposing forbidden plaintext.
+- Idempotency, pagination, ordering, retries, and read receipts must be first-class design elements.
 
-
-class Conversation(UUIDTimeStampedModel):
-    participant_low = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="conversations_low",
-    )
-    participant_high = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="conversations_high",
-    )
-    last_message_at = models.DateTimeField(null=True, blank=True)
-
-
-class Message(UUIDTimeStampedModel):
-    conversation = models.ForeignKey(
-        Conversation,
-        on_delete=models.CASCADE,
-        related_name="messages",
-    )
-    sender = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="sent_messages",
-    )
-    content_type = models.CharField(max_length=20)
-    encrypted_payload = models.JSONField()
-    client_message_id = models.CharField(max_length=128, unique=True)
-    sent_at = models.DateTimeField()
-```
-
-Notes:
-
-- `encrypted_payload` must contain ciphertext metadata only.
-- Media payloads must be encrypted before upload.
-- Receipt state should be per-recipient, not a single flat field on the message.
-
-### 5.3 Message delivery flow
-
-```mermaid
-sequenceDiagram
-  participant S as Sender Device
-  participant API as Django API
-  participant DB as PostgreSQL
-  participant WS as Channels Socket
-  participant FCM as Firebase Push
-  participant R as Recipient Device
-
-  S->>API: POST encrypted message envelope
-  API->>DB: Save conversation + message + attachment metadata
-  API->>WS: Broadcast message.incoming
-  API->>FCM: Queue generic push notification
-  WS->>R: Deliver encrypted event if online
-  FCM->>R: Wake recipient if offline/background
-  R->>API: Mark delivered/read
-  API->>WS: Broadcast receipt update to sender
-```
-
-### 5.4 Media message flow
-
-```mermaid
-sequenceDiagram
-  participant D as Sender Device
-  participant API as Django API
-  participant M as Media Storage
-  participant R as Recipient Device
-
-  D->>D: Encrypt file and media key on device
-  D->>API: Request upload target
-  API-->>D: Upload target or signed upload contract
-  D->>M: Upload encrypted media blob
-  D->>API: Create message with encrypted media key and metadata
-  API-->>R: Deliver encrypted message envelope
-  R->>M: Download encrypted media blob
-  R->>R: Decrypt locally for playback or display
-```
-
-### 5.5 Realtime events
-
-Extend the current socket namespace rather than creating a second websocket channel.
-
-Required event families:
+### Realtime event families
 
 - `message.incoming`
 - `message.updated`
@@ -257,330 +341,359 @@ Required event families:
 - `conversation.updated`
 - `typing.started`
 - `typing.stopped`
-- `contact.updated`
 
-Recommended event payload style:
+## 14. Contact Synchronization Architecture
 
-```typescript
-type MessageIncomingEvent = {
-  type: "message.incoming";
-  payload: {
-    conversation_id: string;
-    message_id: string;
-    sender_id: string;
-    content_type: "text" | "image" | "video" | "voice";
-    encrypted_payload: Record<string, unknown>;
-    created_at: string;
-  };
-};
-```
+### Requirements
 
-### 5.6 Push behavior
+- Request Android contacts permission deliberately.
+- Normalize numbers locally before backend matching.
+- Handle duplicates and country-code differences.
+- Return matched app users only.
+- Define privacy boundaries before upload strategy is chosen.
 
-Use the existing device and Firebase push pipeline.
+### Required policy work
 
-Rules:
+- Decide whether raw normalized numbers, hashes, or a hybrid strategy are sent and retained.
+- Define re-sync, removal, and block interaction behavior.
+- Avoid unrestricted phonebook upload without retention and privacy rules.
 
-- Never send plaintext message bodies in push payloads.
-- Use generic body previews such as `New message`, `Photo`, `Video`, `Voice message`.
-- Include conversation and sender IDs so the mobile app can route correctly after resume.
+## 15. Calling Architecture Compatibility
 
-## 6. Contacts and Relationship Rules
+The calling stack must not regress while messaging is added.
 
-The existing contact model already includes `accepted`, `pending`, `rejected`, and `blocked`. That is a useful base, but it is not enough for the new product behavior.
+Protected capabilities:
 
-Required additions:
+- Messages to call
+- Calls tab to call
+- Contacts to call
+- Incoming call
+- Outgoing call
+- Audio call
+- Video call
+- Background call
+- Terminated incoming call
 
-- contact source metadata: phone-sync, app-only, imported, unknown-sender
-- local alias or display snapshot for presentation stability
-- block and unblock mutation endpoints
-- unknown sender state surfaced to the mobile client
-- save-contact suggestion state
-- matched-number sync endpoint
+Compatibility rule:
 
-Recommended relationship rule matrix:
+- The mobile client must stay provider-agnostic.
+- The backend must continue deciding call provider and media authorization.
 
-| State              | Incoming message | Incoming call | Reply allowed | Notifications | Visible save action |
-| ------------------ | ---------------- | ------------- | ------------- | ------------- | ------------------- |
-| Saved              | Yes              | Yes           | Yes           | Yes           | No                  |
-| Unknown            | Yes              | Yes           | Yes           | Yes           | Yes                 |
-| Blocked            | No               | No            | No            | No            | No                  |
-| Pending local save | Yes              | Yes           | Yes           | Yes           | Yes                 |
+## 16. Navigation / UI Architecture
 
-## 7. Calls Surface Rework
+### Current state
 
-The existing call stack is already implemented for initiation and active-call handling. The missing piece is a real calls-list product surface.
+- Visible tabs: `Home`, `Contacts`, `Search`, `Profile`
+- Hidden routes: `Settings` and `calls/*`
 
-Required backend additions:
+### Target state
 
-- call history list endpoint
-- call history search by counterpart name or number
-- summary serializer for tab list items
+- Visible tabs: `Messages`, `Calls`, `Contacts`
+- Avatar menu: `Profile`, `Settings`
+- Hidden routes: active call screens and secondary flows
 
-Required mobile additions:
+### Loading state
 
-- visible Calls tab
-- searchable call history
-- FAB to start a new call
-- quick actions from history rows
-- save or block action when the counterpart is still unknown
+The app should show a deliberate loading state after splash while auth bootstrap and startup initialization complete. Private routes should not rely on immediate post-hydration access alone.
 
-## 8. Mobile App-Shell Rework
+## 17. NativeWind Migration Strategy
 
-### 8.1 Navigation changes
+- Do not combine a large styling rewrite with auth and lifecycle fixes.
+- Migrate after core lifecycle and communication flows are stable.
+- Move slice by slice using shared primitives for list rows, cards, top bars, FABs, and search bars.
 
-- Remove visible bottom tabs for Home, Search, and Profile.
-- Keep only `Messages`, `Calls`, and `Contacts` in the tab bar.
-- Move `Profile` and `Settings` behind avatar menu routes.
-- Keep call-active routes hidden and directly navigable.
+Recommended order:
 
-Suggested Expo Router tab shape:
-
-```tsx
-<Tabs>
-  <Tabs.Screen name="index" options={{ title: "Messages" }} />
-  <Tabs.Screen name="calls-list" options={{ title: "Calls" }} />
-  <Tabs.Screen name="contacts" options={{ title: "Contacts" }} />
-  <Tabs.Screen name="profile" options={{ href: null }} />
-  <Tabs.Screen name="settings" options={{ href: null }} />
-  <Tabs.Screen name="calls" options={{ href: null, headerShown: false }} />
-</Tabs>
-```
-
-### 8.2 Loading behavior
-
-The current root layout returns `null` while fonts and auth hydrate. Replace that with a centered spinner screen so the user sees a deliberate loading state after splash.
-
-### 8.3 Styling migration
-
-Requirement: migrate the app design from `StyleSheet` usage to NativeWind while keeping the current dark theme direction.
-
-Execution rule:
-
-- Do not attempt a single-shot rewrite of all screens.
-- First create shared NativeWind primitives for surfaces, cards, top bars, list rows, FABs, search bars, and action buttons.
-- Then migrate screens slice-by-slice.
-
-Recommended migration order:
-
-1. Root loading and auth screens
-2. App shell and top bars
-3. Messages surfaces
-4. Calls surfaces
-5. Contacts surfaces
+1. Loading and auth surfaces
+2. New three-tab app shell
+3. Messages
+4. Calls list and details
+5. Contacts
 6. Profile and Settings
-7. Shared secondary components
 
-## 9. Feature-by-Feature Implementation Plan
+## 18. Backend Implementation Phases
 
-### Phase A: Documentation and contract freeze
+### Gate 0: Repository and Architecture Reconciliation
 
-Deliverables:
+- Freeze the real current architecture in docs.
+- Record lifecycle, auth, screen-timeout, and push findings.
 
-- save this replan document
-- add a proposed feature list document
-- update the implementation tracker and remaining tracker to point at this replan
-- add a reference pointer from the original softphone plan
+### Gate 1: Authentication Persistence
 
-Exit criteria:
+- Reproduce the logout bug.
+- Add startup bootstrap.
+- Fix refresh and rotation policy.
+- Invalidate current-device push registration on logout.
+- Add stronger device and device-session linkage.
 
-- docs are reviewable in repo
-- implementation work can start without reopening product-level ambiguity
+### Gate 2: Lifecycle and Notification Reliability
 
-### Phase B: Backend messaging foundation
+- Define supported Android states.
+- Resolve duplicate incoming-call notification handling.
+- Add token-replacement behavior.
 
-Deliverables:
+### Gate 3: E2EE Feasibility
 
-- `apps.messaging` Django app
-- migrations for messaging and key-bundle models
-- conversation list endpoint
-- thread messages endpoint
-- message send endpoint
-- receipt update endpoint
-- upload contract endpoint
+- Prove encrypted device-to-device delivery.
 
-Exit criteria:
+### Gate 4: Backend Messaging Foundation
 
-- encrypted text messages can be sent and stored
-- backend stores ciphertext and public key data only
-- basic conversation list loads for the authenticated user
+- Add messaging app, endpoints, events, and receipts.
 
-### Phase C: Mobile messaging MVP
+### Gate 5: Contact Sync and Policy Completion
 
-Deliverables:
+- Add sync endpoints and block rules.
 
-- Messages tab
-- conversation search
-- new-conversation picker
-- thread view
-- encrypted text sending and receiving
-- receipt updates
-- push deep-link routing
+## 19. Mobile Implementation Phases
 
-Exit criteria:
+### Gate 1 work
 
-- two devices can exchange encrypted text messages
-- background and foreground delivery both work
+- Add auth bootstrap coordinator.
+- Add startup loading screen.
+- Remove websocket-disconnect-driven token rotation.
+- Harden logout behavior.
 
-### Phase D: Media and voice messages
+### Gate 2 work
 
-Deliverables:
+- Separate message and call notification handling.
+- Verify background and terminated lifecycle paths.
 
-- image and video attachments
-- encrypted upload flow
-- voice recording and playback
-- generic encrypted-media push notifications
+### Gate 5 work
 
-Exit criteria:
+- Add `Messages` feature area under `mobile/src/features/messaging/`.
+- Use TanStack Query for message and conversation server state.
+- Convert the visible shell to `Messages`, `Calls`, and `Contacts`.
 
-- two devices can exchange encrypted image, video, and voice messages
+## 20. Native Android Implementation Phases
 
-### Phase E: Calls tab and history
+- Validate generated Android config after auth and push changes.
+- Investigate screen-timeout behavior with hardware and system diagnostics.
+- Scope any wake behavior to active call state only.
+- Preserve CallKeep, Notifee, and LiveKit integration while adjusting lifecycle behavior.
 
-Deliverables:
+## 21. Testing Strategy
 
-- Calls tab list screen
-- search over call history
-- new-call contact picker
-- unknown-contact save or block affordances
+### Backend automated tests
 
-Exit criteria:
+- Auth bootstrap semantics
+- Device session rotation and revocation
+- Logout and device invalidation
+- Device token replacement
+- Unknown-user and block authorization
+- Messaging and encrypted envelope validation
+- Push payload generation
 
-- users can search and re-initiate calls from history
-
-### Phase F: Contacts redesign and sync
-
-Deliverables:
-
-- phone-contact permission and sync
-- number normalization and backend matching
-- contact add flow with app-user validation
-- optional sync-to-phone-contact toggle
-- block and unblock controls
-
-Exit criteria:
-
-- matched app users appear from phone contacts
-- save or block flows work for unknown inbound contacts
-
-### Phase G: NativeWind completion and regression pass
-
-Deliverables:
-
-- replace major screen-level StyleSheet layouts with NativeWind primitives
-- verify dark visual language remains stable
-- keep only minimal StyleSheet use for edge cases if strictly necessary
-
-Exit criteria:
-
-- main user-facing surfaces no longer depend on StyleSheet-heavy screen implementations
-
-## 10. File Plan
-
-### Backend files to create
-
-- `backend/apps/messaging/__init__.py`
-- `backend/apps/messaging/apps.py`
-- `backend/apps/messaging/models.py`
-- `backend/apps/messaging/serializers.py`
-- `backend/apps/messaging/views.py`
-- `backend/apps/messaging/services.py`
-- `backend/apps/messaging/tasks.py`
-- `backend/apps/messaging/urls.py`
-- `backend/apps/messaging/tests.py`
-
-### Backend files to update
-
-- `backend/config/settings/base.py`
-- `backend/config/urls.py`
-- `backend/apps/calls/consumers.py`
-- `backend/apps/calls/realtime.py`
-- `backend/apps/calls/views.py`
-- `backend/apps/calls/urls.py`
-- `backend/apps/contacts/models.py`
-- `backend/apps/contacts/views.py`
-- `backend/apps/devices/services.py`
-
-### Mobile files to create or repurpose
-
-- `mobile/app/(app)/index.tsx` as Messages
-- `mobile/app/(app)/calls-list.tsx`
-- `mobile/app/(app)/contacts.tsx` redesign
-- `mobile/app/(app)/messages/[conversationId].tsx`
-- `mobile/app/(app)/messages/new.tsx`
-- `mobile/src/features/messaging/api.ts`
-- `mobile/src/features/messaging/types.ts`
-- `mobile/src/features/messaging/hooks.ts`
-- `mobile/src/features/messaging/crypto.ts`
-- `mobile/src/features/messaging/components/*`
-- `mobile/src/stores/message-store.ts`
-
-### Mobile files to update
-
-- `mobile/app/_layout.tsx`
-- `mobile/app/(app)/_layout.tsx`
-- `mobile/app/(auth)/login.tsx`
-- `mobile/src/providers/app-providers.tsx`
-- `mobile/src/lib/realtime/socket-client.ts`
-
-## 11. Testing Strategy
-
-### Automated backend tests
-
-- messaging model rules
-- encrypted envelope validation
-- send message API
-- conversation list ordering
-- receipt updates
-- media attachment flows
-- call history list and search
-- contact match endpoint
-- block and unblock enforcement
-
-### Mobile structural checks
+### Mobile static checks
 
 - `npx tsc --noEmit`
 - `npx expo export --platform android`
 - `npx expo prebuild --platform android --no-install`
 
-### Manual two-device checks
+### Native validation
 
-- text messaging
-- image messaging
-- video messaging
-- voice messaging
-- save unknown sender
-- block unknown sender
-- unblock contact
-- contact sync from phone book
-- initiate call from Messages
-- initiate call from Calls
-- initiate call from Contacts
-- foreground delivery
-- background delivery
-- terminated-state delivery
+- Android debug assemble using the established repo workflow
 
-## 12. Non-goals For This Replan
+### Physical-device validation
 
-The following are deliberately not included in the first execution wave:
+- Required for FCM, terminated-state notifications, CallKeep, Notifee, ringtone, vibration, screen wake, contacts permission, LiveKit media, and screen timeout
 
-- group chats
-- disappearing messages
-- reactions and edits
-- stories or status system
-- desktop or web clients
-- actual PortaOne integration
-- actual Asterisk SIP integration
+## 22. Physical Device Test Matrix
 
-## 13. Review Outcome Expected Before Coding Starts
+### Authentication
 
-Reviewers should confirm:
+- login -> close -> reopen
+- login -> access token expiry -> reopen
+- login -> swipe away -> reopen
+- login -> process kill -> reopen
+- login -> device reboot -> reopen
+- login -> revoke session -> reopen
+- login -> logout -> reopen
 
-- the three-tab product direction
-- the E2E encryption baseline
-- the unknown-sender rules
-- the phone-contact sync and matching policy
-- the NativeWind migration order
-- the phased implementation order
+### Calls
 
-Once this review passes, implementation should continue in Agent mode with the tracker files updated after each completed slice.
+- outgoing audio and video
+- incoming accept, reject, cancel, end
+- busy and timeout
+- background incoming call
+- terminated incoming call
+
+### Notifications
+
+- foreground call push
+- background call push
+- foreground message push
+- background message push
+- terminated message push where platform allows
+- denied notification permission
+- FCM token rotation
+
+### Screen behavior
+
+- idle browsing
+- idle contacts
+- idle future messaging screen
+- ringing incoming call
+- connected audio call
+- connected video call
+- post-call idle
+
+## 23. Security Considerations
+
+- Do not treat push tokens as the only stable device identity.
+- Link logout semantics to current installation reachability.
+- Prevent old device registrations from remaining active after account switches.
+- Do not leak plaintext messages in push payloads when E2EE forbids it.
+- Use audited cryptographic libraries and documented key lifecycle rules.
+- Enforce block policy consistently across REST, websocket, push, and media-join authorization.
+
+## 24. Performance Considerations
+
+- Avoid refresh loops triggered by reconnect churn.
+- Keep message and conversation server state in TanStack Query.
+- Use pagination for call history and message history.
+- Use minimal push payloads when native rendering already generates richer UI.
+
+## 25. Failure and Recovery Scenarios
+
+- Expired access token with valid device session should recover silently during bootstrap.
+- Revoked device session should clear local auth and return the user to auth routes.
+- Explicit logout should revoke backend session and stop further push reachability for that installation.
+- Token rotation failures should not silently strand the client in an unrecoverable state.
+- Unsupported Android states must be documented rather than hidden.
+
+## 26. Regression Matrix
+
+| Area           | Existing behavior                       | New behavior                                                | Must not regress |
+| -------------- | --------------------------------------- | ----------------------------------------------------------- | ---------------- |
+| Login          | Secure session exists                   | Startup bootstrap and hidden auth transitions               | Yes              |
+| Logout         | Revokes device session only             | Revoke current session and current-device push reachability | Yes              |
+| Device session | Persisted in SecureStore                | Survives restart with deterministic refresh policy          | Yes              |
+| Token refresh  | Retry on 401                            | Add startup refresh and remove disconnect-driven rotation   | Yes              |
+| Messages       | Not implemented                         | E2EE 1:1 messaging                                          | N/A              |
+| Calls          | LiveKit audio and video calling         | Integrated into new shell                                   | Yes              |
+| Contacts       | Manual accepted contacts                | Add sync and unknown-user policy                            | Yes              |
+| FCM            | Call push only                          | Call plus message notification architecture                 | Yes              |
+| CallKeep       | Incoming native call UI                 | Preserve terminated incoming-call behavior                  | Yes              |
+| Notifee        | Incoming-call notifications and actions | Preserve call actions and add safe message channels         | Yes              |
+| Screen timeout | Bug reported                            | Respect system timeout outside call-only scope              | Fix              |
+| LiveKit        | Working provider                        | Preserve with messaging integration                         | Yes              |
+| Expo Router    | Working signed-in shell                 | Convert to Messages, Calls, Contacts                        | Yes              |
+
+## 27. Documentation/Tracker Updates
+
+This re-plan requires the tracker files to reflect the real current state:
+
+- `docs/PROPOSED_FEATURE_LIST.md` must distinguish existing foundations from missing product work.
+- `docs/IMPLEMENTATION_SO_FAR.md` must remain factual and stop implying the communication scope is mostly complete.
+- `docs/REMAINING_IMPLEMENTATION.md` must be realigned to the architecture gates in this document.
+
+Add a dedicated section for newly identified lifecycle and reliability requirements covering:
+
+- persistent login and startup refresh
+- screen-timeout investigation
+- terminated-state message notification
+- terminated-state call notification reliability
+- sound, ringtone, and vibration behavior
+- Android lifecycle limitations
+- FCM token and registration reliability
+
+## 28. Risks and Mitigations
+
+- Risk: the logout bug remains non-reproducible during desk review.
+  - Mitigation: gate the first implementation phase around instrumentation and reproduction, not blind rewrites.
+- Risk: auth changes break incoming-call behavior.
+  - Mitigation: preserve background-call-actions path and test on hardware immediately after auth changes.
+- Risk: notification dedup changes break terminated incoming calls.
+  - Mitigation: validate across supported Android states before messaging work begins.
+- Risk: E2EE design blocks messaging delivery.
+  - Mitigation: make E2EE a hard feasibility gate before full messaging implementation.
+- Risk: UI migration increases blast radius.
+  - Mitigation: defer NativeWind-heavy migration until lifecycle work is stable.
+
+## 29. Architecture Decisions Required
+
+1. Device identity model
+2. DeviceSession to Device linkage model
+3. Device-session rotation policy after startup hardening
+4. Incoming-call push payload strategy
+5. E2EE protocol and library choice
+6. Phone-contact sync privacy model
+7. Unknown-user calling and messaging authorization details
+
+## 30. Final Recommended Execution Order
+
+1. Gate 0: repository and documentation reconciliation
+2. Gate 1: authentication persistence and device-session hardening
+3. Gate 2: Android lifecycle and notification reliability
+4. Screen-timeout investigation and scoped fix
+5. Gate 3: E2EE feasibility spike
+6. Gate 4: backend messaging foundation
+7. Gate 5: mobile messaging foundation
+8. Encrypted media
+9. Calls and messaging integration
+10. Contact synchronization and policy completion
+11. NativeWind migration
+12. Full regression and physical-device validation
+
+## 31. Definition of Done
+
+### Authentication
+
+```text
+User logs in
+-> Device session persists
+-> App closes
+-> App reopens
+-> Loading state runs
+-> Access token validates or refreshes
+-> User enters private routes without seeing login
+```
+
+Explicit logout must still log the user out. A revoked device session must force re-authentication.
+
+### Screen Timeout
+
+```text
+App open normally
+-> User does nothing
+-> Android system timeout occurs
+-> Screen turns off according to system settings
+```
+
+### Incoming Message
+
+```text
+Sender sends message
+-> Recipient app foreground/background/terminated
+-> FCM when platform allows
+-> Android notification
+-> Tap opens correct conversation
+```
+
+### Incoming Call
+
+```text
+Caller starts call
+-> FCM/native call handling
+-> Recipient foreground/background/terminated
+-> Incoming call UI
+-> Supported wake behavior
+-> Answer
+-> LiveKit call connection
+```
+
+### E2EE
+
+```text
+Device A encrypts
+-> Server stores and relays ciphertext
+-> Device B decrypts
+```
+
+### Existing Calling
+
+Existing LiveKit audio and video calling plus native incoming-call handling must remain functional.
+
+### Future Telephony
+
+The backend provider abstraction must remain compatible with future PortaOne, Asterisk, SIP, and PSTN work.

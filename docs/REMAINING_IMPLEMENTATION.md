@@ -4,162 +4,231 @@ Status: Active planning tracker
 
 Purpose:
 
-- Track the remaining work to complete the project.
-- Keep next actions, blockers, and phase priorities visible.
-- Update this file after every completed phase.
+- Track the remaining work to complete the communication-product transition.
+- Keep next actions, dependencies, blockers, and risks visible.
+- Stay aligned with the reconciled repository audit rather than older completion assumptions.
 
 Reference plan:
 
-- See `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md` for the authoritative design and execution plan.
-- See `docs/COMMUNICATION_APP_REPLAN.md` for the active communication-first addendum that now defines the next implementation phase.
-- See `docs/PROPOSED_FEATURE_LIST.md` for the concise feature inventory under that addendum.
+- `docs/ANDROID_SOFTPHONE_IMPLEMENTATION_PLAN.md`
+- `docs/COMMUNICATION_APP_REPLAN.md`
+- `docs/PROPOSED_FEATURE_LIST.md`
+- `docs/IMPLEMENTATION_SO_FAR.md`
 
 ## Current Overall State
 
-- A new communication-first replan is now saved for review, with a matching feature list summary. Messaging, calls-list redesign, contacts-sync redesign, and NativeWind migration should follow those documents once approved.
-- Phase 0 is complete.
-- Phase 1 is complete.
-- Phase 2 is complete in code and awaiting final hardware reconfirmation only.
-- Phase 3 is complete in code and awaiting final hardware reconfirmation only.
-- Phase 4 is complete.
-- Phase 5 is complete in code and awaiting final hardware reconfirmation only.
-- Phase 6 is complete in code and awaiting final hardware reconfirmation only.
-- Phases 7 through 12 are implemented in code and now primarily blocked on final build and manual validation.
+- The repository already contains working foundations for auth, device sessions, devices, websocket signaling, push delivery, and LiveKit calling.
+- The communication-product migration remains incomplete.
+- Messaging, E2EE, contact sync, unknown-user policy, block enforcement, and the approved three-tab shell are still ahead.
+- The highest-priority work is lifecycle hardening, not messaging UI.
 
 ## Next Immediate Actions
 
-1. Review `docs/COMMUNICATION_APP_REPLAN.md` and `docs/PROPOSED_FEATURE_LIST.md` together and confirm the communication-first product direction before implementation starts.
-2. Finish the current Android debug assemble validation and confirm the generated build installs and launches cleanly with the new LiveKit, CallKeep, and Notifee dependencies.
-3. Manually validate the end-to-end call lifecycle across two signed-in Android devices: outgoing call, incoming call, accept, reject, cancel, end, busy, and timeout.
-4. Manually validate real audio and video media flow, runtime camera and microphone permission prompts, and background or terminated incoming-call handling on hardware.
+1. Review `docs/COMMUNICATION_APP_REPLAN.md` and approve the reconciled architecture and execution order.
+2. Reproduce the reopen-logs-out behavior on physical Android hardware with instrumentation.
+3. Reproduce the screen-timeout behavior on physical Android hardware and determine whether it is tied to active call state or broader app state.
+4. Validate current incoming-call behavior across foreground, background, swipe-away, and terminated states before changing push logic.
 
-## Remaining Phases
+## Execution Gates
 
-### Phase 0: Environment Verification
+### Gate 0: Repository and Architecture Reconciliation
 
-Status: Complete
+Status: Complete in documentation, awaiting review approval
 
 Remaining tasks:
 
-- Install JDK 25 if desired target runtime is still required before native Android build validation.
-- Confirm real-device USB debugging workflow during the first Android install.
+- Review and approve the reconciled communication re-plan.
+- Confirm the tracker files now reflect the real repository state.
 
 Dependencies:
 
 - None.
 
-Known risks:
+### Gate 1: Authentication Persistence and Device Hardening
 
-- Android build may still need JDK 17 even if Java 25 is installed.
-
-### Phase 1: Repository Bootstrap
-
-Status: Complete
+Status: Not started
 
 Remaining tasks:
 
-- None.
+- Reproduce the logout-on-reopen bug.
+- Add a dedicated startup auth bootstrap flow.
+- Remove generic websocket-disconnect-driven token rotation.
+- Decide and implement current-device logout invalidation behavior.
+- Strengthen device-session and device-registration linkage.
+- Add regression tests for auth restore, revoked sessions, and logout.
 
 Dependencies:
 
-- Phase 0 complete.
+- Gate 0 review approval.
 
-### Phase 2: Mobile Foundation
+### Gate 2: Android Lifecycle and Notification Reliability
 
-Status: Complete in code
+Status: Not started
 
 Remaining tasks:
 
-- Reconfirm the regenerated Android project installs and launches on hardware after the new native calling dependencies are added.
+- Define supported Android states explicitly.
+- Resolve incoming-call notification dedup risk.
+- Add FCM token-replacement handling.
+- Define message-notification architecture for future messaging.
+- Re-validate terminated incoming-call behavior after auth hardening.
 
 Dependencies:
 
-- Phase 1 mobile scaffold complete.
+- Gate 1 complete or stable enough for lifecycle validation.
 
-### Phase 3: Native Calling Foundation
+### Gate 2A: Screen Timeout Investigation
 
-Status: Complete in code
+Status: Not started
 
 Remaining tasks:
 
-- Confirm the current native dependency set assembles cleanly and behaves correctly on hardware.
+- Reproduce the screen-timeout issue on hardware.
+- Inspect generated Android behavior during idle browsing and active calls.
+- Scope any necessary wake behavior to active calls only.
+- Validate post-call timeout restoration.
 
 Dependencies:
 
-- Phase 2 complete.
+- Physical-device testing access.
 
-### Phase 4: Backend Foundation
+### Gate 3: E2EE Feasibility
 
-Status: Complete
+Status: Not started
 
 Remaining tasks:
 
-- None.
+- Choose an audited protocol or library.
+- Define device-key lifecycle and multi-device behavior.
+- Prove encrypted device-to-device delivery on real code.
+- Define safe push payload policy for encrypted messages.
 
 Dependencies:
 
-- Phase 1 backend scaffold complete.
+- Gate 1 and Gate 2 findings incorporated.
 
-### Phase 5: Authentication
+### Gate 4: Backend Messaging Foundation
 
-Status: Complete in code
+Status: Not started
 
 Remaining tasks:
 
-- Reconfirm the secure session flow on the current Android device while testing background call actions.
+- Create `backend/apps/messaging/`.
+- Add conversation, message, attachment, receipt, and key-bundle models.
+- Add REST and websocket contracts for messaging.
+- Add authorization rules for unknown users and blocked users.
 
 Dependencies:
 
-- Phase 4 complete.
+- Gate 3 complete.
 
-### Phase 6 to Phase 12
+### Gate 5: Mobile Messaging Foundation
 
-Status: Mixed
-
-### Phase 6: Contacts and Search
-
-Status: Complete in code
+Status: Not started
 
 Remaining tasks:
 
-- Reconfirm the contacts and directory flow on hardware as part of the two-device call validation path.
+- Create `mobile/src/features/messaging/`.
+- Add messages list, thread view, composer, and notification routing.
+- Use TanStack Query for message and conversation server state.
+- Convert the visible shell to `Messages`, `Calls`, and `Contacts`.
 
 Dependencies:
 
-- Phase 5 mobile auth flow remains active and stable.
+- Gate 4 complete.
 
-### Phase 7 to Phase 12
+### Gate 6: Encrypted Media
 
-Status: Implemented in code
+Status: Not started
 
 Remaining tasks:
 
-- Final build validation, real-device verification, and bug-fix follow-up only.
+- Add encrypted image, video, and voice upload and download flows.
+- Define message attachment contracts and retry behavior.
 
 Dependencies:
 
-- Earlier phases complete.
+- Gates 3 through 5 complete.
+
+### Gate 7: Calls and Messaging Integration
+
+Status: Not started
+
+Remaining tasks:
+
+- Add call actions from message threads and conversation surfaces.
+- Preserve all existing audio and video call flows while integrating the new shell.
+- Align unknown-user and blocked-user policy across calls and messaging.
+
+Dependencies:
+
+- Gates 4 through 6 complete.
+
+### Gate 8: Contact Synchronization and Contact Policy
+
+Status: Not started
+
+Remaining tasks:
+
+- Add phone-contact sync and backend matching.
+- Add contact-detail actions for save, block, unblock, call, and message.
+- Define retention and privacy policy for normalized numbers or hashes.
+
+Dependencies:
+
+- Gate 7 stable enough for shared policy decisions.
+
+### Gate 9: NativeWind Migration
+
+Status: Not started
+
+Remaining tasks:
+
+- Migrate the new shell and communication surfaces safely.
+- Keep lifecycle and native integrations stable during UI migration.
+
+Dependencies:
+
+- Gates 1 through 8 functionally stable.
+
+### Gate 10: Full Regression and Hardware Validation
+
+Status: Not started
+
+Remaining tasks:
+
+- Test on at least two physical Android devices.
+- Validate auth restore, push lifecycle, call lifecycle, screen timeout, and notification behavior.
+- Re-run static checks and Android build validation.
+
+Dependencies:
+
+- All earlier gates complete.
 
 ## Active Blockers
 
-- The feature implementation blockers are cleared in code. The remaining blockers are final Android native assemble confirmation and two-device hardware validation.
+- Root cause of the logout-on-reopen bug is not yet proven.
+- Root cause of the screen-timeout bug is not yet proven.
+- Android lifecycle support boundaries are not fully documented or hardware-validated.
+- E2EE design is not yet selected.
 
 ## Risks To Re-check During Execution
 
-- SimpleJWT may still lag behind the requested backend stack.
-- Expo Android build may still require JDK 17 instead of JDK 25.
-- Real-device calling behavior cannot be signed off on emulator-only testing.
-- Cloudflare Tunnel is development-only and must not be treated as production hosting.
+- SimpleJWT behavior under the chosen Python and Django stack
+- Android build compatibility if Java runtime requirements change
+- Realtime reconnect behavior after auth lifecycle changes
+- Incoming-call reliability across OEM background restrictions
+- Duplicate incoming-call notification behavior
 
 ## Deferred Decisions
 
-- Whether Java 25 is fully usable for the Android build path.
-- Whether a preview APK profile is needed beyond the direct USB development-build workflow.
-- Whether additional theming variants are needed for the splash and launcher assets.
-- Whether to keep the current root `app/` Expo Router structure or later move routes under `src/app/`.
-- Whether Expo Router typed-route generation will later recognize the new sibling app routes without relying on relative href strings.
+- Device identity model and how to link `DeviceSession` to `Device`
+- Whether session rotation policy remains enabled exactly as-is
+- Final E2EE protocol and library selection
+- Phone-contact sync privacy model
+- Timing of the larger NativeWind migration once the new shell exists
 
 ## Last Updated
 
-- Date: 2026-09-16
+- Date: 2026-09-29
 - Updated by: GitHub Copilot
