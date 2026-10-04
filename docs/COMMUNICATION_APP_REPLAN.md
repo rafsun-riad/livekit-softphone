@@ -257,7 +257,7 @@ The original code-based hypothesis was that websocket disconnects could trigger 
 ### Current gaps
 
 - No message-notification architecture exists.
-- Device rows are not linked to device sessions or installation identity.
+- Device rows now persist installation identity and can link to the active device session during registration, but hardware validation and token-replacement behavior remain open.
 - Logout does not invalidate the device push registration.
 - The same physical push token can remain active under more than one account unless separately invalidated.
 

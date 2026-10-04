@@ -20,6 +20,13 @@ class Device(UUIDTimeStampedModel):
         on_delete=models.CASCADE,
         related_name="devices",
     )
+    device_session = models.ForeignKey(
+        "accounts.DeviceSession",
+        on_delete=models.SET_NULL,
+        related_name="devices",
+        null=True,
+        blank=True,
+    )
     platform = models.CharField(max_length=20, choices=DevicePlatform.choices)
     push_provider = models.CharField(
         max_length=20,

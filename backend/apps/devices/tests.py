@@ -3,7 +3,7 @@ from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from apps.accounts.models import User
+from apps.accounts.models import DeviceSession, User
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.test import SimpleTestCase, override_settings
@@ -35,6 +35,62 @@ class DeviceAPITests(APITestCase):
             display_name="Other User",
         )
         self.client.force_authenticate(user=self.user)
+
+    def test_register_device_links_current_device_session(self):
+        self.client.force_authenticate(user=None)
+        installation_id = str(uuid.uuid4())
+
+        login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "installation_id": installation_id,
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        device_session = DeviceSession.objects.get(user=self.user)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access_token']}"
+        )
+        register_response = self.client.post(
+            reverse("devices-register"),
+            {
+                "platform": DevicePlatform.ANDROID,
+                "push_provider": PushProvider.FCM,
+                "device_session_token": login_response.data["device_session_token"],
+                "installation_id": installation_id,
+                "push_token": "fcm-token-1",
+                "app_version": "1.0.0",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+
+        self.assertEqual(register_response.status_code, status.HTTP_200_OK)
+        device = Device.objects.get(user=self.user, installation_id=installation_id)
+        self.assertEqual(device.device_session_id, device_session.id)
+
+    def test_register_device_rejects_invalid_device_session_token(self):
+        register_response = self.client.post(
+            reverse("devices-register"),
+            {
+                "platform": DevicePlatform.ANDROID,
+                "push_provider": PushProvider.FCM,
+                "device_session_token": "not-a-real-device-session-token",
+                "installation_id": str(uuid.uuid4()),
+                "push_token": "fcm-token-1",
+                "app_version": "1.0.0",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+
+        self.assertEqual(register_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(register_response.data["code"], "device_register_failed")
 
     def test_register_device_creates_or_updates_active_device(self):
         installation_id = str(uuid.uuid4())

@@ -48,8 +48,7 @@ Reference plan:
 ### Confirmed lifecycle gaps
 
 - Startup auth bootstrap is implemented but has not yet been validated on physical devices.
-- Logout deactivates the current push registration when its token/device row is identifiable; durable installation identity and session linkage remain open.
-- Device registrations are not linked to device sessions or installation identity
+- Logout deactivates the current push registration when its token/device row is identifiable; physical validation of the new installation and session linkage remains open.
 - Call push handling needs lifecycle validation and dedup review
 
 ### Investigation items, not yet proven root causes
@@ -127,6 +126,7 @@ Reference plan:
 - Backend device registration now reuses the same installation across push-token changes and invalidates older active device rows that share the same installation or push token across account switches.
 - Mobile login now sends the same stable installation identity used by push registration.
 - Device sessions now persist installation identity, and backend logout invalidates active device rows for the same installation even if the client does not delete the device row first.
+- Device registration now accepts the current device-session token and stores a direct session-to-device association for the active installation.
 - Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
 - Device-session-to-installation linkage, hardware reproduction, and dedicated auth regression tests remain open.
 

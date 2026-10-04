@@ -16,6 +16,7 @@ export type RegisteredDevice = {
 export type RegisterDevicePayload = {
   platform: "android" | "ios";
   pushProvider?: "fcm";
+  deviceSessionToken?: string;
   installationId: string;
   pushToken: string;
   appVersion: string;

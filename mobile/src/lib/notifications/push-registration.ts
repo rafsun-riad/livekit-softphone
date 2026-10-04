@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { registerDevice } from "@/src/features/devices/api";
 import type { RegisteredDevice } from "@/src/features/devices/types";
 import { getInstallationId } from "@/src/lib/device/installation-id";
+import { useAuthStore } from "@/src/stores/auth-store";
 
 export const PUSH_NOTIFICATION_CHANNEL_ID = "incoming-calls";
 
@@ -100,9 +101,12 @@ export async function syncCurrentDeviceRegistration(
     existingToken ??
     normalizeNativePushToken(await Notifications.getDevicePushTokenAsync());
   const installationId = await getInstallationId();
+  const deviceSessionToken =
+    useAuthStore.getState().session?.device_session_token ?? undefined;
   const registeredDevice = await registerDevice({
     platform: Platform.OS === "ios" ? "ios" : "android",
     pushProvider: "fcm",
+    deviceSessionToken,
     installationId,
     pushToken: nativePushToken,
     appVersion: getAppVersion(),

@@ -14,6 +14,7 @@ export function registerDevice(payload: RegisterDevicePayload) {
     body: {
       platform: payload.platform,
       push_provider: payload.pushProvider ?? "fcm",
+      device_session_token: payload.deviceSessionToken ?? "",
       installation_id: payload.installationId,
       push_token: payload.pushToken,
       app_version: payload.appVersion,

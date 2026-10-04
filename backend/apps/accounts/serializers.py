@@ -5,6 +5,7 @@ import uuid
 from apps.devices.models import Device
 from django.contrib.auth import authenticate, password_validation
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -217,15 +218,14 @@ class AuthService:
         if session is None:
             return False
 
+        device_filters = Q(device_session=session)
         if session.installation_id is not None:
-            Device.objects.filter(
-                user=user,
-                installation_id=session.installation_id,
-                is_active=True,
-            ).update(
-                is_active=False,
-                invalidated_at=timezone.now(),
-            )
+            device_filters |= Q(installation_id=session.installation_id)
+
+        Device.objects.filter(user=user, is_active=True).filter(device_filters).update(
+            is_active=False,
+            invalidated_at=timezone.now(),
+        )
 
         session.revoke("logout")
         return True

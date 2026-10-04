@@ -239,6 +239,42 @@ class AuthAPITests(APITestCase):
         self.assertFalse(device.is_active)
         self.assertIsNotNone(device.invalidated_at)
 
+    def test_logout_invalidates_device_linked_to_session_without_installation_id(self):
+        user = User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="user@example.com",
+            password="StrongPass123!",
+            display_name="Auth User",
+        )
+
+        session, raw_token = DeviceSession.create_with_token(
+            user=user,
+            installation_id=None,
+            device_label="Legacy install",
+        )
+        device = Device.objects.create(
+            user=user,
+            device_session=session,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
+            push_token="legacy-token",
+            app_version="1.0.0",
+            device_label="Legacy Pixel",
+        )
+
+        self.client.force_authenticate(user=user)
+        logout_response = self.client.post(
+            reverse("auth-logout"),
+            {"device_session_token": raw_token},
+            format="json",
+        )
+
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        device.refresh_from_db()
+        self.assertFalse(device.is_active)
+        self.assertIsNotNone(device.invalidated_at)
+
     def test_me_returns_current_user_for_valid_access_token(self):
         User.objects.create_user(
             phone_number="+1 415 555 2671",
