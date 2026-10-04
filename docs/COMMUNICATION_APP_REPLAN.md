@@ -253,17 +253,18 @@ The original code-based hypothesis was that websocket disconnects could trigger 
 - Mobile push registration runs only after authentication and permission grant.
 - Current push channel setup is call-oriented.
 - Background FCM handling currently parses call intents only.
+- Incoming-call pushes now use a high-priority data-only payload so the mobile app can render native incoming-call UI without a duplicate system notification body.
 
 ### Current gaps
 
 - No message-notification architecture exists.
 - Device rows now persist installation identity and can link to the active device session during registration, but hardware validation and token-replacement behavior remain open.
-- Logout does not invalidate the device push registration.
+- Logout invalidates the current-device push registration through server-side device invalidation, but hardware validation remains open.
 - The same physical push token can remain active under more than one account unless separately invalidated.
 
 ### Duplicate-handler risk
 
-Incoming-call pushes currently appear to use both backend notification text/body and mobile-side native incoming-call rendering. That must be reconciled to avoid duplicate surfaces.
+Incoming-call pushes no longer send visible backend notification text or body for call alerts; the mobile client is responsible for rendering the native incoming-call surface. Hardware validation is still required across supported Android states.
 
 ### Android state distinctions that must be documented
 

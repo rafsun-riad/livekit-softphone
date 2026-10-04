@@ -10,6 +10,7 @@ from rest_framework.test import APITestCase
 
 from .models import CallEvent
 from .presence import broadcast_presence_change
+from .realtime import send_incoming_call_push
 
 
 class PresenceTests(TestCase):
@@ -51,6 +52,38 @@ class PresenceTests(TestCase):
                 "display_name": user.display_name,
                 "phone_number_normalized": user.phone_number_normalized,
             },
+        )
+
+
+class IncomingCallPushTests(TestCase):
+    @patch("apps.calls.realtime.DevicePushService.send_to_user_devices")
+    def test_incoming_call_push_uses_high_priority_data_only_payload(
+        self,
+        send_mock,
+    ):
+        user = User.objects.create_user(
+            phone_number="+1 415 555 7999",
+            email="callee@example.com",
+            password="StrongPass123!",
+            display_name="Callee User",
+        )
+
+        send_incoming_call_push(
+            user=user,
+            caller_name="Caller User",
+            payload={"call_id": "call-123", "call_type": "audio"},
+        )
+
+        send_mock.assert_called_once_with(
+            user=user,
+            android_priority="high",
+            data={
+                "event_type": "call.incoming",
+                "caller_name": "Caller User",
+                "call_id": "call-123",
+                "call_type": "audio",
+            },
+            dry_run=False,
         )
 
 

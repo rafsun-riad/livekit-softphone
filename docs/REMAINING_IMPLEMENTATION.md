@@ -98,15 +98,19 @@ Dependencies:
 
 ### Gate 2: Android Lifecycle and Notification Reliability
 
-Status: Not started
+Status: In progress
 
 Remaining tasks:
 
 - Define supported Android states explicitly.
-- Resolve incoming-call notification dedup risk.
 - Add FCM token-replacement handling.
 - Define message-notification architecture for future messaging.
 - Re-validate terminated incoming-call behavior after auth hardening.
+
+Implementation begun:
+
+- Incoming-call pushes now use a high-priority data-only backend payload instead of a visible backend notification body.
+- Mobile incoming-call rendering remains centralized in the Notifee and CallKeep handlers fed by push data.
 
 Dependencies:
 

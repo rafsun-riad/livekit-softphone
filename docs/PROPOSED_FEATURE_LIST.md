@@ -111,7 +111,7 @@ Reference documents:
 
 ### Notifications and lifecycle
 
-- Foreground, background, and supported terminated-state call notifications
+- ✅ Foreground, background, and supported terminated-state call notifications
 - Foreground, background, and supported terminated-state message notifications
 - Scoped ringtone, vibration, and wake behavior that respects Android platform limits
 - No unnecessary keep-awake behavior outside active call scope

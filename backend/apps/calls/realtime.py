@@ -44,10 +44,10 @@ def broadcast_user_event(*, user_id, event_type: str, payload: dict) -> None:
 def send_incoming_call_push(*, user, payload: dict, caller_name: str) -> None:
     DevicePushService.send_to_user_devices(
         user=user,
-        title="Incoming call",
-        body=f"{caller_name} is calling you.",
+        android_priority="high",
         data={
             "event_type": "call.incoming",
+            "caller_name": caller_name,
             **{key: str(value) for key, value in payload.items()},
         },
         dry_run=False,

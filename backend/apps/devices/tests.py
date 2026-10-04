@@ -451,6 +451,59 @@ class DevicePushServiceTests(SimpleTestCase):
         self.assertEqual(result.failed_tokens, ["token-2"])
         self.assertEqual(result.message_ids, ["msg-1"])
 
+    @override_settings(
+        FCM_ENABLED=True,
+        FCM_PROJECT_ID="livekit-softphone-mruhaq-6b385",
+        FCM_CLIENT_EMAIL="firebase-adminsdk@test-project.iam.gserviceaccount.com",
+        FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+    )
+    @patch("apps.devices.services.messaging")
+    @patch("apps.devices.services.credentials")
+    @patch("apps.devices.services.firebase_admin")
+    def test_send_to_devices_supports_high_priority_data_only_pushes(
+        self,
+        firebase_admin_mock,
+        credentials_mock,
+        messaging_mock,
+    ):
+        android_config = object()
+        message = object()
+        app = object()
+
+        firebase_admin_mock.get_app.side_effect = ValueError("missing app")
+        firebase_admin_mock.initialize_app.return_value = app
+        credentials_mock.Certificate.return_value = object()
+        messaging_mock.AndroidConfig.return_value = android_config
+        messaging_mock.MulticastMessage.return_value = message
+        messaging_mock.send_each_for_multicast.return_value = SimpleNamespace(
+            success_count=1,
+            failure_count=0,
+            responses=[SimpleNamespace(success=True, message_id="msg-1")],
+        )
+
+        result = DevicePushService.send_to_devices(
+            devices=[
+                SimpleNamespace(
+                    push_token="token-1",
+                    push_provider=PushProvider.FCM,
+                    is_active=True,
+                )
+            ],
+            data={"event_type": "call.incoming", "call_id": "abc123"},
+            android_priority="high",
+            dry_run=True,
+        )
+
+        messaging_mock.AndroidConfig.assert_called_once_with(priority="high")
+        messaging_mock.MulticastMessage.assert_called_once_with(
+            tokens=["token-1"],
+            data={"event_type": "call.incoming", "call_id": "abc123"},
+            android=android_config,
+            notification=None,
+        )
+        self.assertEqual(result.success_count, 1)
+        self.assertEqual(result.failure_count, 0)
+
     @override_settings(FCM_ENABLED=True)
     def test_send_to_devices_returns_empty_result_without_eligible_tokens(self):
         result = DevicePushService.send_to_devices(devices=[])

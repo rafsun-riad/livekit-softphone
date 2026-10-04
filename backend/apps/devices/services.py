@@ -72,6 +72,7 @@ class DevicePushService:
         title: str | None = None,
         body: str | None = None,
         data: dict[str, str] | None = None,
+        android_priority: str | None = None,
         dry_run: bool = False,
     ) -> PushSendResult:
         eligible_devices = [
@@ -96,10 +97,20 @@ class DevicePushService:
         if title or body:
             notification = messaging.Notification(title=title, body=body)
 
+        android_config = None
+        if android_priority:
+            android_config = messaging.AndroidConfig(priority=android_priority)
+
+        message_kwargs = {
+            "tokens": tokens,
+            "data": data or {},
+            "notification": notification,
+        }
+        if android_config is not None:
+            message_kwargs["android"] = android_config
+
         multicast_message = messaging.MulticastMessage(
-            tokens=tokens,
-            data=data or {},
-            notification=notification,
+            **message_kwargs,
         )
         response = messaging.send_each_for_multicast(
             multicast_message,
@@ -136,6 +147,7 @@ class DevicePushService:
         title: str | None = None,
         body: str | None = None,
         data: dict[str, str] | None = None,
+        android_priority: str | None = None,
         dry_run: bool = False,
     ) -> PushSendResult:
         return cls.send_to_devices(
@@ -143,5 +155,6 @@ class DevicePushService:
             title=title,
             body=body,
             data=data,
+            android_priority=android_priority,
             dry_run=dry_run,
         )

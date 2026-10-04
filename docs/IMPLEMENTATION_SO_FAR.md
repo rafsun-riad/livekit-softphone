@@ -141,6 +141,13 @@ Reference plan:
 - Kept the existing call APIs, LiveKit room, permission flow, and route transitions in place.
 - Physical Android lifecycle, permission-denial/retry, and media verification remain open.
 
+### Gate 2 work started
+
+- Incoming-call pushes now use a high-priority data-only payload instead of a visible backend notification body.
+- The mobile app continues to render incoming call UI through Notifee and CallKeep from the push data payload.
+- Added backend regression coverage for the high-priority data-only call push shape.
+- Supported-state hardware validation, token-replacement behavior, and message-notification architecture remain open.
+
 ### Validation completed
 
 - Mobile TypeScript check: passed.
