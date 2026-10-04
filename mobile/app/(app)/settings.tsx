@@ -15,6 +15,7 @@ import { env } from "@/src/config/env";
 import { getCurrentUser, logout } from "@/src/features/auth/api";
 import { deleteDevice, getDevices } from "@/src/features/devices/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { getInstallationId } from "@/src/lib/device/installation-id";
 import { syncCurrentDeviceRegistration } from "@/src/lib/notifications/push-registration";
 import { applyManualPushSyncResult } from "@/src/providers/push-notifications-provider";
 import type { AuthState } from "@/src/stores/auth-store";
@@ -68,9 +69,14 @@ export default function SettingsScreen() {
       await getCurrentUser();
 
       if (registeredDeviceId || nativePushToken) {
+        const installationId = await getInstallationId();
         const devices = await getDevices();
         const currentDevice =
           devices.find((device) => device.id === registeredDeviceId) ??
+          devices.find(
+            (device) =>
+              device.is_active && device.installation_id === installationId,
+          ) ??
           devices.find(
             (device) =>
               device.is_active && device.push_token === nativePushToken,
@@ -217,6 +223,9 @@ export default function SettingsScreen() {
               {device.device_label || `${device.platform} device`}
             </Text>
             <Text style={styles.deviceMeta}>ID: {device.id}</Text>
+            <Text style={styles.deviceMeta}>
+              Installation: {device.installation_id}
+            </Text>
             <Text style={styles.deviceMeta}>
               {device.platform} · {device.push_provider} · v{device.app_version}
             </Text>

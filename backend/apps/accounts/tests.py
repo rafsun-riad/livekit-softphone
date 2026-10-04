@@ -115,6 +115,66 @@ class AuthAPITests(APITestCase):
         )
         self.assertEqual(refresh_after_logout.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_logout_revokes_only_the_current_device_session(self):
+        user = User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="user@example.com",
+            password="StrongPass123!",
+            display_name="Auth User",
+        )
+
+        first_login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+        second_login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+                "device_label": "Pixel Tablet",
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_login_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_login_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            DeviceSession.objects.filter(user=user, revoked_at__isnull=True).count(), 2
+        )
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {first_login_response.data['access_token']}"
+        )
+        logout_response = self.client.post(
+            reverse("auth-logout"),
+            {"device_session_token": first_login_response.data["device_session_token"]},
+            format="json",
+        )
+
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            DeviceSession.objects.filter(user=user, revoked_at__isnull=True).count(), 1
+        )
+
+        second_refresh_response = self.client.post(
+            reverse("auth-refresh"),
+            {
+                "device_session_token": second_login_response.data[
+                    "device_session_token"
+                ]
+            },
+            format="json",
+        )
+
+        self.assertEqual(second_refresh_response.status_code, status.HTTP_200_OK)
+        self.assertIn("access_token", second_refresh_response.data)
+
     def test_me_returns_current_user_for_valid_access_token(self):
         User.objects.create_user(
             phone_number="+1 415 555 2671",

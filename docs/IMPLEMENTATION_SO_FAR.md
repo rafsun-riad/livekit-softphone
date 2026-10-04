@@ -123,6 +123,8 @@ Reference plan:
 - Transient network/refresh failures preserve the stored session and show a retryable startup error.
 - Made refresh requests single-flight and persist the rotated device-session token before retrying the protected request.
 - Removed device-session refresh and auth clearing from generic websocket disconnect handling.
+- Added a stable SecureStore-backed installation identity on mobile and included it in backend device registration.
+- Backend device registration now reuses the same installation across push-token changes and invalidates older active device rows that share the same installation or push token across account switches.
 - Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
 - Device-session-to-installation linkage, hardware reproduction, and dedicated auth regression tests remain open.
 
@@ -131,6 +133,7 @@ Reference plan:
 - Added shared NativeWind call presentation primitives and removed standard call-stack headers.
 - Redesigned incoming, outgoing, active audio, and active video screens.
 - Extracted shared call polling, permission, media authorization, timer, and end-call orchestration into `mobile/src/features/calls/use-active-call.ts`.
+- Added shared active-call controls for mute, speaker routing, local hold or resume, and video camera toggling through `mobile/src/features/calls/use-call-controls.ts`.
 - Kept the existing call APIs, LiveKit room, permission flow, and route transitions in place.
 - Physical Android lifecycle, permission-denial/retry, and media verification remain open.
 

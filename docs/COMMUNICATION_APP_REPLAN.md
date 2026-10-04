@@ -399,6 +399,7 @@ The current mobile call screens are functionally correct but visually read as di
 - Use immersive full-screen layouts with strong contact identity, concise status copy, and bottom-anchored circular controls.
 - Keep the redesign inspired by WhatsApp's hierarchy and pacing without turning it into a near-clone.
 - Preserve provider-agnostic behavior and existing backend lifecycle contracts.
+- Ship a practical first-pass in-call control set: mute and unmute microphone, toggle loud speaker or earpiece, toggle video camera where available, and place the local media session on hold or resume.
 
 ### Architecture approach
 
@@ -424,6 +425,7 @@ The current mobile call screens are functionally correct but visually read as di
 
 - The current mobile data model does not expose avatar images, so the first redesign pass should use initials and typography rather than photo-based layouts.
 - The current implementation does not yet expose richer in-call controls such as camera flip or route picker wiring. These should be treated as follow-up capabilities unless the media SDK supports them cleanly during implementation.
+- The current backend and provider contract does not expose a network-level hold action. The first pass should therefore implement hold as a local media pause state and clearly preserve room and call lifecycle continuity until a provider-backed hold contract exists.
 - The redesign must not break existing incoming-call routing from websocket, push, CallKeep, or Notifee flows.
 
 ### Verification
@@ -518,6 +520,7 @@ Recommended order:
 - Extract shared call-screen state and route presentation primitives.
 - Rebuild incoming, outgoing, audio, and video call screens around a WhatsApp-inspired full-screen layout.
 - Implement all call-screen presentation work in NativeWind.
+- Add shared in-call controls for mute, speaker routing, local hold and resume, and camera toggle where applicable.
 - Preserve existing call lifecycle, join-media, CallKeep, Notifee, and realtime route behavior.
 - Initial implementation has headerless NativeWind call surfaces, shared presentation primitives, and shared active-call orchestration; physical lifecycle and media verification remain to be completed.
 
@@ -687,6 +690,12 @@ Add a dedicated section for newly identified lifecycle and reliability requireme
 6. Phone-contact sync privacy model
 7. Unknown-user calling and messaging authorization details
 8. Final in-call control set for the first NativeWind redesign pass
+
+Initial approved first-pass control set:
+
+- Audio call: mute or unmute, loud speaker or earpiece toggle, local hold or resume, end call
+- Video call: mute or unmute, camera on or off, loud speaker or earpiece toggle, local hold or resume, end call
+- Deferred controls: camera flip, Bluetooth picker UI, keypad, transfer, merge, and provider-backed network hold
 
 ## 31. Final Recommended Execution Order
 

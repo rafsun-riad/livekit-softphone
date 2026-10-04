@@ -2,6 +2,7 @@ export type RegisteredDevice = {
   id: string;
   platform: string;
   push_provider: string;
+  installation_id: string;
   push_token: string;
   app_version: string;
   device_label: string;
@@ -15,6 +16,7 @@ export type RegisteredDevice = {
 export type RegisterDevicePayload = {
   platform: "android" | "ios";
   pushProvider?: "fcm";
+  installationId: string;
   pushToken: string;
   appVersion: string;
   deviceLabel?: string;

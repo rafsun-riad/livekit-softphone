@@ -8,6 +8,7 @@ type CallControlProps = PropsWithChildren<{
   onPress: () => void;
   variant?: CallControlVariant;
   disabled?: boolean;
+  active?: boolean;
 }>;
 
 const controlStyles: Record<CallControlVariant, string> = {
@@ -51,18 +52,23 @@ export function CallStatus({ children }: PropsWithChildren) {
 }
 
 export function CallControl({
+  active = false,
   children,
   disabled = false,
   label,
   onPress,
   variant = "neutral",
 }: CallControlProps) {
+  const neutralClasses = active
+    ? "border border-sky-400/80 bg-sky-500/20"
+    : controlStyles[variant];
+
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      className={`h-16 min-w-16 items-center justify-center rounded-full px-4 ${controlStyles[variant]} ${disabled ? "opacity-50" : ""}`}
+      className={`h-16 min-w-16 items-center justify-center rounded-full px-4 ${variant === "neutral" ? neutralClasses : controlStyles[variant]} ${disabled ? "opacity-50" : ""}`}
       disabled={disabled}
       onPress={onPress}
     >

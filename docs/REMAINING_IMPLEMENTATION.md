@@ -53,8 +53,8 @@ Remaining tasks:
 - Reproduce the logout-on-reopen bug on hardware.
 - Validate startup auth bootstrap across physical restart states.
 - Add dedicated automated auth-lifecycle regression coverage.
-- Decide and implement durable installation identity and device-session linkage.
-- Strengthen device-session and device-registration linkage.
+- Validate durable installation identity behavior across physical restart, logout, and account-switch states.
+- Decide and implement direct device-session linkage on top of the new installation-aware device registration.
 - Add regression tests for auth restore, revoked sessions, and logout.
 
 Implementation begun:
@@ -62,6 +62,8 @@ Implementation begun:
 - Startup bootstrap validates the current user before private routes mount.
 - API refresh is single-flight and transient failures preserve the persisted session.
 - Generic websocket disconnects no longer rotate credentials or clear auth.
+- Mobile push registration now uses a stable installation identity persisted outside auth state.
+- Backend device registration now treats installation identity as the primary current-device key and invalidates conflicting active rows during account switches or token replacement.
 - Explicit logout deletes the identifiable current-device push registration before revoking the device session.
 
 Dependencies:
@@ -75,6 +77,7 @@ Status: In progress
 Remaining tasks:
 
 - Verify incoming, outgoing, active audio, and active video layouts on Android.
+- Validate local hold, mute, speaker-route, and camera-toggle behavior on hardware.
 - Validate permission denial/retry, call transitions, and end-call cleanup on hardware.
 
 Implementation begun:
@@ -82,6 +85,7 @@ Implementation begun:
 - Added shared NativeWind call presentation primitives and headerless routes.
 - Redesigned incoming and outgoing screens and active audio/video presentation.
 - Extracted shared call polling, permission, media authorization, timer, and end-call orchestration.
+- Added shared local call controls for mute, speaker routing, hold or resume, and video camera toggling.
 - Preserved existing call API, media-session, and route transition logic.
 
 Dependencies:

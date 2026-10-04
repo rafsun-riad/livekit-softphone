@@ -1,3 +1,5 @@
+import uuid
+
 from apps.common.models import UUIDTimeStampedModel
 from django.conf import settings
 from django.db import models
@@ -24,6 +26,7 @@ class Device(UUIDTimeStampedModel):
         choices=PushProvider.choices,
         default=PushProvider.FCM,
     )
+    installation_id = models.UUIDField(default=uuid.uuid4, editable=False)
     push_token = models.TextField()
     app_version = models.CharField(max_length=50)
     device_label = models.CharField(max_length=150, blank=True)
@@ -34,9 +37,13 @@ class Device(UUIDTimeStampedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
+                fields=["user", "installation_id"],
+                name="devices_unique_user_installation_id",
+            ),
+            models.UniqueConstraint(
                 fields=["user", "push_token"],
                 name="devices_unique_user_push_token",
-            )
+            ),
         ]
         ordering = ["-last_seen_at"]
 

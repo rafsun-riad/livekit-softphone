@@ -1,3 +1,4 @@
+import uuid
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -36,11 +37,14 @@ class DeviceAPITests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
     def test_register_device_creates_or_updates_active_device(self):
+        installation_id = str(uuid.uuid4())
+
         register_response = self.client.post(
             reverse("devices-register"),
             {
                 "platform": DevicePlatform.ANDROID,
                 "push_provider": PushProvider.FCM,
+                "installation_id": installation_id,
                 "push_token": "fcm-token-1",
                 "app_version": "1.0.0",
                 "device_label": "Pixel 8",
@@ -53,12 +57,14 @@ class DeviceAPITests(APITestCase):
         device = Device.objects.get()
         self.assertEqual(device.device_label, "Pixel 8")
         self.assertTrue(device.is_active)
+        self.assertEqual(str(device.installation_id), installation_id)
 
         update_response = self.client.post(
             reverse("devices-register"),
             {
                 "platform": DevicePlatform.ANDROID,
-                "push_token": "fcm-token-1",
+                "installation_id": installation_id,
+                "push_token": "fcm-token-rotated",
                 "app_version": "1.0.1",
                 "device_label": "Pixel 8 Pro",
             },
@@ -71,12 +77,52 @@ class DeviceAPITests(APITestCase):
         self.assertEqual(device.app_version, "1.0.1")
         self.assertEqual(device.device_label, "Pixel 8 Pro")
         self.assertEqual(device.push_provider, PushProvider.FCM)
+        self.assertEqual(device.push_token, "fcm-token-rotated")
+
+    def test_register_device_invalidates_previous_account_on_same_installation(self):
+        installation_id = uuid.uuid4()
+        previous_device = Device.objects.create(
+            user=self.other_user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            installation_id=installation_id,
+            push_token="shared-token",
+            app_version="1.0.0",
+            device_label="Other Phone",
+        )
+
+        register_response = self.client.post(
+            reverse("devices-register"),
+            {
+                "platform": DevicePlatform.ANDROID,
+                "push_provider": PushProvider.FCM,
+                "installation_id": str(installation_id),
+                "push_token": "shared-token",
+                "app_version": "1.0.1",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+
+        self.assertEqual(register_response.status_code, status.HTTP_200_OK)
+        previous_device.refresh_from_db()
+        self.assertFalse(previous_device.is_active)
+        self.assertIsNotNone(previous_device.invalidated_at)
+        self.assertEqual(
+            Device.objects.filter(
+                user=self.user,
+                installation_id=installation_id,
+                is_active=True,
+            ).count(),
+            1,
+        )
 
     def test_delete_device_invalidates_only_owned_device(self):
         device = Device.objects.create(
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-1",
             app_version="1.0.0",
             device_label="Pixel 8",
@@ -85,6 +131,7 @@ class DeviceAPITests(APITestCase):
             user=self.other_user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-2",
             app_version="1.0.0",
             device_label="Other Phone",
@@ -106,6 +153,7 @@ class DeviceAPITests(APITestCase):
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="owned-token",
             app_version="1.0.0",
             device_label="Pixel 8",
@@ -114,6 +162,7 @@ class DeviceAPITests(APITestCase):
             user=self.other_user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="other-token",
             app_version="1.0.0",
             device_label="Other Phone",
@@ -130,6 +179,7 @@ class DeviceAPITests(APITestCase):
             user=self.other_user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-2",
             app_version="1.0.0",
             device_label="Other Phone",
@@ -150,6 +200,7 @@ class DeviceAPITests(APITestCase):
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-1",
             app_version="1.0.0",
             device_label="Pixel 8",
@@ -187,6 +238,7 @@ class DeviceAPITests(APITestCase):
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-older",
             app_version="1.0.0",
             device_label="Older Phone",
@@ -195,6 +247,7 @@ class DeviceAPITests(APITestCase):
             user=self.other_user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-latest",
             app_version="1.0.1",
             device_label="Latest Phone",
@@ -228,6 +281,7 @@ class DeviceAPITests(APITestCase):
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-1",
             app_version="1.0.0",
             device_label="Pixel 8",
@@ -236,6 +290,7 @@ class DeviceAPITests(APITestCase):
             user=self.user,
             platform=DevicePlatform.ANDROID,
             push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
             push_token="fcm-token-2",
             app_version="1.0.0",
             device_label="Old Pixel",

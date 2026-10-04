@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 
-import {
-  useConnectionState,
-  useLocalParticipant,
-} from "@livekit/react-native";
+import { useConnectionState, useLocalParticipant } from "@livekit/react-native";
 import { useLocalSearchParams } from "expo-router";
-import { Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react-native";
+import {
+  Mic,
+  MicOff,
+  Pause,
+  PhoneOff,
+  Play,
+  Volume2,
+  VolumeX,
+} from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import {
@@ -18,11 +23,18 @@ import {
 import { LiveKitCallRoom } from "@/src/components/calls/livekit-call-room";
 import { normalizeCallIdParam } from "@/src/features/calls/routes";
 import { useActiveCall } from "@/src/features/calls/use-active-call";
+import { useCallControls } from "@/src/features/calls/use-call-controls";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 
-function AudioCallMediaPanel({ isMuted }: { isMuted: boolean }) {
+function AudioCallMediaPanel({
+  microphoneEnabled,
+  onHold,
+}: {
+  microphoneEnabled: boolean;
+  onHold: boolean;
+}) {
   const connectionState = useConnectionState();
   const { localParticipant, lastMicrophoneError } = useLocalParticipant();
   const [localError, setLocalError] = useState<string | null>(null);
@@ -31,7 +43,7 @@ function AudioCallMediaPanel({ isMuted }: { isMuted: boolean }) {
     let isActive = true;
 
     void localParticipant
-      .setMicrophoneEnabled(!isMuted)
+      .setMicrophoneEnabled(microphoneEnabled)
       .then(() => {
         if (isActive) {
           setLocalError(null);
@@ -50,12 +62,16 @@ function AudioCallMediaPanel({ isMuted }: { isMuted: boolean }) {
     return () => {
       isActive = false;
     };
-  }, [isMuted, localParticipant]);
+  }, [localParticipant, microphoneEnabled]);
 
   return (
     <View className="items-center">
       <CallStatus>
-        {connectionState === "connected" ? "Connected" : "Connecting audio…"}
+        {onHold
+          ? "On local hold"
+          : connectionState === "connected"
+            ? "Connected"
+            : "Connecting audio…"}
       </CallStatus>
       {localError || lastMicrophoneError ? (
         <View className="mt-4">
@@ -69,8 +85,7 @@ function AudioCallMediaPanel({ isMuted }: { isMuted: boolean }) {
 export default function AudioCallScreen() {
   const params = useLocalSearchParams<{ callId?: string | string[] }>();
   const callId = normalizeCallIdParam(params.callId);
-  const [isMuted, setIsMuted] = useState(false);
-  const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const controls = useCallControls("audio");
   const session = useAuthStore((state: AuthState) => state.session);
   const {
     call,
@@ -107,8 +122,9 @@ export default function AudioCallScreen() {
 
   const counterpartName =
     counterpart.display_name || counterpart.phone_number_normalized;
-  const callStatus =
-    call.state === "connected"
+  const callStatus = controls.isOnHold
+    ? "On local hold"
+    : call.state === "connected"
       ? "Connected"
       : call.state === "connecting"
         ? "Connecting…"
@@ -147,9 +163,12 @@ export default function AudioCallScreen() {
             setMediaError(error.message);
           }}
           onMediaError={setMediaError}
-          speakerEnabled={speakerEnabled}
+          speakerEnabled={controls.speakerEnabled}
         >
-          <AudioCallMediaPanel isMuted={isMuted} />
+          <AudioCallMediaPanel
+            microphoneEnabled={controls.microphoneEnabled}
+            onHold={controls.isOnHold}
+          />
         </LiveKitCallRoom>
       ) : null}
 
@@ -188,23 +207,36 @@ export default function AudioCallScreen() {
 
         <View className="flex-row items-center justify-center gap-5">
           <CallControl
-            label={isMuted ? "Unmute" : "Mute"}
-            onPress={() => setIsMuted((value) => !value)}
+            active={controls.isMuted && !controls.isOnHold}
+            label={controls.isMuted ? "Unmute" : "Mute"}
+            onPress={controls.toggleMute}
           >
-            {isMuted ? (
+            {controls.isMuted ? (
               <MicOff color="#ffffff" size={21} strokeWidth={2.2} />
             ) : (
               <Mic color="#ffffff" size={21} strokeWidth={2.2} />
             )}
           </CallControl>
           <CallControl
-            label={speakerEnabled ? "Speaker" : "Earpiece"}
-            onPress={() => setSpeakerEnabled((value) => !value)}
+            active={controls.speakerEnabled}
+            label={controls.speakerEnabled ? "Speaker" : "Earpiece"}
+            onPress={controls.toggleSpeaker}
           >
-            {speakerEnabled ? (
+            {controls.speakerEnabled ? (
               <Volume2 color="#ffffff" size={21} strokeWidth={2.2} />
             ) : (
               <VolumeX color="#ffffff" size={21} strokeWidth={2.2} />
+            )}
+          </CallControl>
+          <CallControl
+            active={controls.isOnHold}
+            label={controls.isOnHold ? "Resume" : "Hold"}
+            onPress={controls.toggleHold}
+          >
+            {controls.isOnHold ? (
+              <Play color="#ffffff" size={21} strokeWidth={2.2} />
+            ) : (
+              <Pause color="#ffffff" size={21} strokeWidth={2.2} />
             )}
           </CallControl>
           <CallControl

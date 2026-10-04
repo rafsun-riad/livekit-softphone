@@ -8,7 +8,17 @@ import {
 } from "@livekit/react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Track } from "livekit-client";
-import { Camera, CameraOff, Mic, MicOff, PhoneOff } from "lucide-react-native";
+import {
+  Camera,
+  CameraOff,
+  Mic,
+  MicOff,
+  Pause,
+  PhoneOff,
+  Play,
+  Volume2,
+  VolumeX,
+} from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 
 import {
@@ -20,24 +30,24 @@ import {
 import { LiveKitCallRoom } from "@/src/components/calls/livekit-call-room";
 import { normalizeCallIdParam } from "@/src/features/calls/routes";
 import { useActiveCall } from "@/src/features/calls/use-active-call";
+import { useCallControls } from "@/src/features/calls/use-call-controls";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 
 function VideoCallMediaPanel({
   cameraEnabled,
-  isMuted,
+  microphoneEnabled,
+  onHold,
   participantName,
 }: {
   cameraEnabled: boolean;
-  isMuted: boolean;
+  microphoneEnabled: boolean;
+  onHold: boolean;
   participantName: string;
 }) {
-  const {
-    lastCameraError,
-    lastMicrophoneError,
-    localParticipant,
-  } = useLocalParticipant();
+  const { lastCameraError, lastMicrophoneError, localParticipant } =
+    useLocalParticipant();
   const tracks = useTracks([
     { source: Track.Source.Camera, withPlaceholder: true },
   ]);
@@ -55,7 +65,7 @@ function VideoCallMediaPanel({
 
     void Promise.all([
       localParticipant.setCameraEnabled(cameraEnabled),
-      localParticipant.setMicrophoneEnabled(!isMuted),
+      localParticipant.setMicrophoneEnabled(microphoneEnabled),
     ])
       .then(() => {
         if (isActive) {
@@ -75,7 +85,7 @@ function VideoCallMediaPanel({
     return () => {
       isActive = false;
     };
-  }, [cameraEnabled, isMuted, localParticipant]);
+  }, [cameraEnabled, localParticipant, microphoneEnabled]);
 
   return (
     <View className="absolute inset-0 bg-slate-900">
@@ -90,7 +100,7 @@ function VideoCallMediaPanel({
           <View className="flex-1 items-center justify-center px-8">
             <CallAvatar name={participantName} />
             <Text className="mt-6 text-base text-slate-200">
-              Waiting for video…
+              {onHold ? "Call is on local hold" : "Waiting for video…"}
             </Text>
           </View>
         )}
@@ -127,8 +137,7 @@ function VideoCallMediaPanel({
 export default function VideoCallScreen() {
   const params = useLocalSearchParams<{ callId?: string | string[] }>();
   const callId = normalizeCallIdParam(params.callId);
-  const [isMuted, setIsMuted] = useState(false);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const controls = useCallControls("video");
   const session = useAuthStore((state: AuthState) => state.session);
   const {
     call,
@@ -176,10 +185,12 @@ export default function VideoCallScreen() {
             setMediaError(error.message);
           }}
           onMediaError={setMediaError}
+          speakerEnabled={controls.speakerEnabled}
         >
           <VideoCallMediaPanel
-            cameraEnabled={cameraEnabled}
-            isMuted={isMuted}
+            cameraEnabled={controls.videoEnabled}
+            microphoneEnabled={controls.microphoneEnabled}
+            onHold={controls.isOnHold}
             participantName={counterpartName}
           />
         </LiveKitCallRoom>
@@ -196,9 +207,11 @@ export default function VideoCallScreen() {
 
       <View className="absolute left-0 right-0 top-0 items-center px-6 pt-3">
         <CallStatus>
-          {durationLabel
-            ? `${counterpartName} · ${durationLabel}`
-            : `Video call · ${counterpartName}`}
+          {controls.isOnHold
+            ? `${counterpartName} · On local hold`
+            : durationLabel
+              ? `${counterpartName} · ${durationLabel}`
+              : `Video call · ${counterpartName}`}
         </CallStatus>
       </View>
 
@@ -240,23 +253,47 @@ export default function VideoCallScreen() {
 
         <View className="flex-row items-center justify-center gap-5">
           <CallControl
-            label={isMuted ? "Unmute" : "Mute"}
-            onPress={() => setIsMuted((value) => !value)}
+            active={controls.isMuted && !controls.isOnHold}
+            label={controls.isMuted ? "Unmute" : "Mute"}
+            onPress={controls.toggleMute}
           >
-            {isMuted ? (
+            {controls.isMuted ? (
               <MicOff color="#ffffff" size={21} strokeWidth={2.2} />
             ) : (
               <Mic color="#ffffff" size={21} strokeWidth={2.2} />
             )}
           </CallControl>
           <CallControl
-            label={cameraEnabled ? "Camera off" : "Camera on"}
-            onPress={() => setCameraEnabled((value) => !value)}
+            active={controls.cameraEnabled && !controls.isOnHold}
+            label={controls.cameraEnabled ? "Camera off" : "Camera on"}
+            onPress={controls.toggleCamera}
           >
-            {cameraEnabled ? (
+            {controls.cameraEnabled ? (
               <Camera color="#ffffff" size={21} strokeWidth={2.2} />
             ) : (
               <CameraOff color="#ffffff" size={21} strokeWidth={2.2} />
+            )}
+          </CallControl>
+          <CallControl
+            active={controls.speakerEnabled}
+            label={controls.speakerEnabled ? "Speaker" : "Earpiece"}
+            onPress={controls.toggleSpeaker}
+          >
+            {controls.speakerEnabled ? (
+              <Volume2 color="#ffffff" size={21} strokeWidth={2.2} />
+            ) : (
+              <VolumeX color="#ffffff" size={21} strokeWidth={2.2} />
+            )}
+          </CallControl>
+          <CallControl
+            active={controls.isOnHold}
+            label={controls.isOnHold ? "Resume" : "Hold"}
+            onPress={controls.toggleHold}
+          >
+            {controls.isOnHold ? (
+              <Play color="#ffffff" size={21} strokeWidth={2.2} />
+            ) : (
+              <Pause color="#ffffff" size={21} strokeWidth={2.2} />
             )}
           </CallControl>
           <CallControl

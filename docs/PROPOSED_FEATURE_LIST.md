@@ -80,6 +80,7 @@ Reference documents:
 - Caller/callee identity shown with initials until avatar data is available
 - Concise call status and duration instead of diagnostic session details
 - Bottom-anchored circular answer, decline, mute, speaker, camera, and end-call controls
+- Add a first-pass hold or resume control that pauses local media without changing the backend call state until provider-backed hold exists
 - Active video stage with full-screen remote video and a pinned local preview
 - Preserve existing LiveKit media, API lifecycle, websocket routing, CallKeep, and Notifee behavior
 - Keep camera flip and audio-route picker out of the first pass until supported and wired reliably
