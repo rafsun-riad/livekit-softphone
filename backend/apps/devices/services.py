@@ -7,7 +7,9 @@ from types import SimpleNamespace
 import firebase_admin
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
 from firebase_admin import credentials, messaging
+from firebase_admin.messaging import UnregisteredError
 
 from .models import Device, PushProvider
 
@@ -55,6 +57,35 @@ def get_firebase_app():
 
 
 class DevicePushService:
+    @staticmethod
+    def _invalidate_unregistered_devices(
+        *,
+        devices: list[Device | SimpleNamespace],
+        response,
+    ) -> None:
+        stale_device_ids: list[str] = []
+
+        for index, send_response in enumerate(response.responses):
+            if send_response.success:
+                continue
+
+            failure = getattr(send_response, "exception", None)
+            if not isinstance(failure, UnregisteredError):
+                continue
+
+            device = devices[index]
+            device_id = getattr(device, "id", None)
+            if device_id is not None:
+                stale_device_ids.append(str(device_id))
+
+        if not stale_device_ids:
+            return
+
+        Device.objects.filter(id__in=stale_device_ids, is_active=True).update(
+            is_active=False,
+            invalidated_at=timezone.now(),
+        )
+
     @staticmethod
     def get_active_fcm_devices_for_user(user) -> list[Device]:
         return list(
@@ -116,6 +147,11 @@ class DevicePushService:
             multicast_message,
             dry_run=dry_run,
             app=get_firebase_app(),
+        )
+
+        DevicePushService._invalidate_unregistered_devices(
+            devices=eligible_devices,
+            response=response,
         )
 
         successful_tokens: list[str] = []

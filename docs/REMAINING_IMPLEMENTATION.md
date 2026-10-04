@@ -69,6 +69,7 @@ Implementation begun:
 - Device registration now sends and stores the current device-session association for the active install.
 - Existing databases now migrate installation identity safely through a per-row backfill before the uniqueness constraint is applied.
 - Explicit logout deletes the identifiable current-device push registration before revoking the device session.
+- In-app lifecycle diagnostics are now available in Settings to capture auth, push, app-state, and realtime evidence during hardware validation.
 
 Dependencies:
 
@@ -103,7 +104,7 @@ Status: In progress
 Remaining tasks:
 
 - Define supported Android states explicitly.
-- Add FCM token-replacement handling.
+- Validate FCM token-replacement handling across real token rotation and stale-token failure states.
 - Define message-notification architecture for future messaging.
 - Re-validate terminated incoming-call behavior after auth hardening.
 
@@ -111,6 +112,7 @@ Implementation begun:
 
 - Incoming-call pushes now use a high-priority data-only backend payload instead of a visible backend notification body.
 - Mobile incoming-call rendering remains centralized in the Notifee and CallKeep handlers fed by push data.
+- Backend push sending now invalidates device registrations when Firebase reports unregistered tokens.
 
 Dependencies:
 

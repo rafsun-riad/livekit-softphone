@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { PropsWithChildren, useEffect, useEffectEvent } from "react";
 
+import { logLifecycleEvent } from "@/src/lib/debug/lifecycle-log";
 import {
   syncCurrentDeviceRegistration,
   type PushSyncResult,
@@ -44,6 +45,9 @@ export function PushNotificationsProvider({ children }: PropsWithChildren) {
   const setSyncing = usePushStore((state: PushState) => state.setSyncing);
 
   const syncRegistration = useEffectEvent(async (existingToken?: string) => {
+    logLifecycleEvent("push", "sync.start", {
+      hasExistingToken: Boolean(existingToken),
+    });
     setChecking();
 
     try {
@@ -53,11 +57,18 @@ export function PushNotificationsProvider({ children }: PropsWithChildren) {
 
       const result = await syncCurrentDeviceRegistration(existingToken);
       applyPushSyncResult(result, setDenied, setRegistered);
+      logLifecycleEvent("push", "sync.result", {
+        permissionStatus: result.permissionStatus,
+        registeredDeviceId: result.registeredDevice?.id ?? null,
+      });
 
       if (result.registeredDevice) {
         await queryClient.invalidateQueries({ queryKey: ["devices"] });
       }
     } catch (error) {
+      logLifecycleEvent("push", "sync.failed", {
+        message: error instanceof Error ? error.message : "unknown error",
+      });
       setError(
         error instanceof Error ? error.message : "Push registration failed.",
       );
@@ -66,6 +77,7 @@ export function PushNotificationsProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!session) {
+      logLifecycleEvent("push", "reset_without_session");
       resetPushState();
       return;
     }
@@ -75,6 +87,9 @@ export function PushNotificationsProvider({ children }: PropsWithChildren) {
     const subscription = Notifications.addPushTokenListener((token) => {
       const nextToken =
         typeof token.data === "string" ? token.data : String(token.data);
+      logLifecycleEvent("push", "token_listener", {
+        tokenLength: nextToken.length,
+      });
       void syncRegistration(nextToken);
     });
 

@@ -184,6 +184,11 @@ The original code-based hypothesis was that websocket disconnects could trigger 
 - Instrument mobile logs for hydration, refresh attempts, token updates, websocket status transitions, and `clearSession` calls.
 - Inspect backend `DeviceSession.rotated_at` behavior during reproduction.
 
+Implementation support now present:
+
+- The mobile app now records a capped in-app lifecycle diagnostics trail covering auth hydration, refresh attempts, session clearing, push sync, app-state changes, realtime status, notification responses, and background FCM handling.
+- Settings now exposes the recent lifecycle event trail so physical-device validation can capture evidence without attaching a debugger.
+
 ### Proposed fix
 
 - Add a dedicated mobile auth bootstrap coordinator.
@@ -254,11 +259,12 @@ The original code-based hypothesis was that websocket disconnects could trigger 
 - Current push channel setup is call-oriented.
 - Background FCM handling currently parses call intents only.
 - Incoming-call pushes now use a high-priority data-only payload so the mobile app can render native incoming-call UI without a duplicate system notification body.
+- Backend push sending now invalidates active device rows when Firebase reports an unregistered token, so stale FCM registrations do not stay active indefinitely.
 
 ### Current gaps
 
 - No message-notification architecture exists.
-- Device rows now persist installation identity and can link to the active device session during registration, but hardware validation and token-replacement behavior remain open.
+- Device rows now persist installation identity and can link to the active device session during registration, but hardware validation of token-replacement behavior remains open.
 - Logout invalidates the current-device push registration through server-side device invalidation, but hardware validation remains open.
 - The same physical push token can remain active under more than one account unless separately invalidated.
 

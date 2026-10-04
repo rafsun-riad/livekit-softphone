@@ -3,6 +3,7 @@ import { Link } from "expo-router";
 import {
   ArrowLeft,
   BellRing,
+  Bug,
   LogOut,
   RefreshCcw,
   Server,
@@ -20,6 +21,7 @@ import { syncCurrentDeviceRegistration } from "@/src/lib/notifications/push-regi
 import { applyManualPushSyncResult } from "@/src/providers/push-notifications-provider";
 import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
+import { useLifecycleDebugStore } from "@/src/stores/lifecycle-debug-store";
 import type { PushState } from "@/src/stores/push-store";
 import { usePushStore } from "@/src/stores/push-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
@@ -45,6 +47,10 @@ export default function SettingsScreen() {
   );
   const lastError = usePushStore((state: PushState) => state.lastError);
   const lastSyncedAt = usePushStore((state: PushState) => state.lastSyncedAt);
+  const lifecycleEntries = useLifecycleDebugStore((state) => state.entries);
+  const clearLifecycleEntries = useLifecycleDebugStore(
+    (state) => state.clearEntries,
+  );
   const devicesQuery = useQuery({
     enabled: Boolean(session),
     queryFn: getDevices,
@@ -236,6 +242,39 @@ export default function SettingsScreen() {
         ))}
       </View>
 
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Bug color={appColors.cyanSoft} size={18} strokeWidth={2.2} />
+          <Text style={styles.sectionTitle}>Lifecycle diagnostics</Text>
+        </View>
+        <Text style={styles.metaValue}>
+          Use this event trail during physical-device testing for restart,
+          refresh, push, and realtime-state debugging.
+        </Text>
+        <Pressable
+          onPress={clearLifecycleEntries}
+          style={styles.secondaryAction}
+        >
+          <Text style={styles.secondaryLabel}>Clear lifecycle log</Text>
+        </Pressable>
+        {!lifecycleEntries.length ? (
+          <Text style={styles.metaValue}>
+            No lifecycle events captured yet.
+          </Text>
+        ) : null}
+        {lifecycleEntries.slice(0, 20).map((entry) => (
+          <View key={entry.id} style={styles.debugRow}>
+            <Text style={styles.debugTitle}>
+              {new Date(entry.timestamp).toLocaleTimeString()} · {entry.scope} ·{" "}
+              {entry.event}
+            </Text>
+            {entry.details ? (
+              <Text style={styles.debugDetails}>{entry.details}</Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+
       {logoutMutation.isError ? (
         <Text style={styles.errorText}>
           {getAPIErrorMessage(logoutMutation.error)}
@@ -388,6 +427,27 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 13,
     lineHeight: 18,
+  },
+  debugDetails: {
+    color: appColors.textMuted,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  debugRow: {
+    borderColor: appColors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  debugTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6,
   },
   errorText: {
     color: "#fca5a5",

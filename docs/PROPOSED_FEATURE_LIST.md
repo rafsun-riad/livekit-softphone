@@ -123,7 +123,7 @@ Reference documents:
 - Terminated-state message-notification design
 - Terminated-state call-notification reliability validation
 - Device-session and device-registration linkage policy
-- FCM token rotation and replacement handling
+- ✅ FCM token rotation and replacement handling
 - Android lifecycle limitation documentation
 
 ## Explicitly Deferred

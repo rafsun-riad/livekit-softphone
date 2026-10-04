@@ -130,6 +130,7 @@ Reference plan:
 - Device installation identity migration now backfills unique installation IDs per existing device row before adding the uniqueness constraint, so existing databases can migrate cleanly.
 - Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
 - Added backend auth regression coverage for revoked device sessions, session-linked device invalidation, and installation-linked logout behavior.
+- Added a capped in-app lifecycle diagnostics trail plus a Settings viewer for auth, refresh, push, app-state, notification, and realtime events to support physical-device reproduction.
 - Hardware reproduction and mobile lifecycle validation remain open.
 
 ### Call screen redesign work started
@@ -145,8 +146,10 @@ Reference plan:
 
 - Incoming-call pushes now use a high-priority data-only payload instead of a visible backend notification body.
 - The mobile app continues to render incoming call UI through Notifee and CallKeep from the push data payload.
+- Backend push sending now invalidates device registrations when Firebase reports that a token is unregistered.
 - Added backend regression coverage for the high-priority data-only call push shape.
-- Supported-state hardware validation, token-replacement behavior, and message-notification architecture remain open.
+- Added backend regression coverage for stale-token invalidation on unregistered FCM failures.
+- Supported-state hardware validation and message-notification architecture remain open.
 
 ### Validation completed
 

@@ -6,8 +6,9 @@ from unittest.mock import patch
 from apps.accounts.models import DeviceSession, User
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
+from firebase_admin.messaging import UnregisteredError
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -513,3 +514,110 @@ class DevicePushServiceTests(SimpleTestCase):
         self.assertEqual(result.successful_tokens, [])
         self.assertEqual(result.failed_tokens, [])
         self.assertEqual(result.message_ids, [])
+
+
+@override_settings(
+    FCM_ENABLED=True,
+    FCM_PROJECT_ID="livekit-softphone-mruhaq-6b385",
+    FCM_CLIENT_EMAIL="firebase-adminsdk@test-project.iam.gserviceaccount.com",
+    FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+)
+class DevicePushServicePersistenceTests(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="owner@example.com",
+            password="StrongPass123!",
+            display_name="Owner User",
+        )
+
+    @patch("apps.devices.services.messaging")
+    @patch("apps.devices.services.credentials")
+    @patch("apps.devices.services.firebase_admin")
+    def test_send_to_devices_invalidates_unregistered_tokens(
+        self,
+        firebase_admin_mock,
+        credentials_mock,
+        messaging_mock,
+    ):
+        device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
+            push_token="stale-token",
+            app_version="1.0.0",
+            device_label="Pixel 8",
+        )
+
+        firebase_admin_mock.get_app.side_effect = ValueError("missing app")
+        firebase_admin_mock.initialize_app.return_value = object()
+        credentials_mock.Certificate.return_value = object()
+        messaging_mock.MulticastMessage.return_value = object()
+        messaging_mock.send_each_for_multicast.return_value = SimpleNamespace(
+            success_count=0,
+            failure_count=1,
+            responses=[
+                SimpleNamespace(
+                    success=False,
+                    message_id=None,
+                    exception=UnregisteredError("stale token"),
+                )
+            ],
+        )
+
+        DevicePushService.send_to_devices(
+            devices=[device],
+            data={"event_type": "call.incoming", "call_id": "abc123"},
+            dry_run=False,
+        )
+
+        device.refresh_from_db()
+        self.assertFalse(device.is_active)
+        self.assertIsNotNone(device.invalidated_at)
+
+    @patch("apps.devices.services.messaging")
+    @patch("apps.devices.services.credentials")
+    @patch("apps.devices.services.firebase_admin")
+    def test_send_to_devices_keeps_devices_active_for_other_failures(
+        self,
+        firebase_admin_mock,
+        credentials_mock,
+        messaging_mock,
+    ):
+        device = Device.objects.create(
+            user=self.user,
+            platform=DevicePlatform.ANDROID,
+            push_provider=PushProvider.FCM,
+            installation_id=uuid.uuid4(),
+            push_token="temporary-failure-token",
+            app_version="1.0.0",
+            device_label="Pixel 8",
+        )
+
+        firebase_admin_mock.get_app.side_effect = ValueError("missing app")
+        firebase_admin_mock.initialize_app.return_value = object()
+        credentials_mock.Certificate.return_value = object()
+        messaging_mock.MulticastMessage.return_value = object()
+        messaging_mock.send_each_for_multicast.return_value = SimpleNamespace(
+            success_count=0,
+            failure_count=1,
+            responses=[
+                SimpleNamespace(
+                    success=False,
+                    message_id=None,
+                    exception=ValueError("temporary failure"),
+                )
+            ],
+        )
+
+        DevicePushService.send_to_devices(
+            devices=[device],
+            data={"event_type": "call.incoming", "call_id": "abc123"},
+            dry_run=False,
+        )
+
+        device.refresh_from_db()
+        self.assertTrue(device.is_active)
+        self.assertIsNone(device.invalidated_at)

@@ -19,6 +19,7 @@ import {
   routeInitialNativeCallIntent,
   syncNativeCallUi,
 } from "@/src/lib/calls/native-call-ui";
+import { logLifecycleEvent } from "@/src/lib/debug/lifecycle-log";
 import { parseNotificationCallIntent } from "@/src/lib/notifications/call-intents";
 import { socketClient } from "@/src/lib/realtime/socket-client";
 import type { AuthState } from "@/src/stores/auth-store";
@@ -35,6 +36,10 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
 
   const handleSocketEvent = useEffectEvent(
     async (event: { type: SocketEventType | string; payload: unknown }) => {
+      logLifecycleEvent("realtime", "socket.event", {
+        eventType: event.type,
+      });
+
       if (event.type === "call.incoming") {
         const call = event.payload as CallRecord;
         setIncomingCall(call);
@@ -61,6 +66,7 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
 
   const handleStatusChange = useEffectEvent(
     (status: "disconnected" | "connecting" | "connected" | "error") => {
+      logLifecycleEvent("realtime", "socket.status", { status });
       setSocketStatus(status);
     },
   );
@@ -81,22 +87,28 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!session?.access_token) {
+      logLifecycleEvent("realtime", "disconnect_without_session");
       socketClient.disconnect();
       resetRealtimeState();
       RNCallKeep.setAvailable(false);
       return;
     }
 
+    logLifecycleEvent("realtime", "connect_with_session", {
+      userId: session.user.id,
+    });
     void ensureNativeCallingReadyAsync();
     socketClient.connect(session.access_token);
 
     const appStateSubscription = AppState.addEventListener(
       "change",
       (state) => {
+        logLifecycleEvent("app", "state.change", { state });
         if (
           state === "active" &&
           useAuthStore.getState().session?.access_token
         ) {
+          logLifecycleEvent("realtime", "reconnect_on_active");
           socketClient.connect(useAuthStore.getState().session!.access_token);
         }
       },
@@ -114,6 +126,9 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
       const intent = parseNotificationCallIntent(
         lastResponse?.notification.request.content.data,
       );
+      logLifecycleEvent("notifications", "last_response_checked", {
+        hasIntent: Boolean(intent?.callId),
+      });
       if (intent?.callId) {
         router.push(buildCallRoute("incoming", intent.callId));
       }
@@ -128,6 +143,9 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
         const intent = parseNotificationCallIntent(
           response.notification.request.content.data,
         );
+        logLifecycleEvent("notifications", "response_received", {
+          hasIntent: Boolean(intent?.callId),
+        });
         if (intent?.callId) {
           router.push(buildCallRoute("incoming", intent.callId));
         }

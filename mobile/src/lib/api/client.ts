@@ -1,5 +1,6 @@
 import { requireApiUrl } from "@/src/config/env";
 import type { AuthSession } from "@/src/features/auth/types";
+import { logLifecycleEvent } from "@/src/lib/debug/lifecycle-log";
 import { useAuthStore } from "@/src/stores/auth-store";
 
 export type JSONValue =
@@ -128,9 +129,14 @@ async function performAuthSessionRefresh(): Promise<AuthSession | null> {
 
   try {
     if (!session?.device_session_token) {
+      logLifecycleEvent("auth-refresh", "skipped_missing_device_session");
       await clearSession();
       return null;
     }
+
+    logLifecycleEvent("auth-refresh", "start", {
+      userId: session.user.id,
+    });
 
     const refreshedSession = await apiRequest<AuthSession>(
       "/api/auth/refresh/",
@@ -142,12 +148,22 @@ async function performAuthSessionRefresh(): Promise<AuthSession | null> {
       },
     );
     await setSession(refreshedSession);
+    logLifecycleEvent("auth-refresh", "success", {
+      userId: refreshedSession.user.id,
+    });
     return refreshedSession;
   } catch (error) {
     if (error instanceof APIError && error.status === 401) {
+      logLifecycleEvent("auth-refresh", "unauthorized", {
+        code: error.code,
+      });
       await clearSession();
       return null;
     }
+
+    logLifecycleEvent("auth-refresh", "failed", {
+      message: error instanceof Error ? error.message : "unknown error",
+    });
 
     throw error;
   } finally {
@@ -180,10 +196,14 @@ export async function authenticatedRequest<T>(
       throw error;
     }
 
+    logLifecycleEvent("auth-request", "received_401", {
+      path,
+      code: error.code,
+    });
+
     const latestSession = useAuthStore.getState().session;
     const refreshedSession =
-      latestSession &&
-      latestSession.access_token !== session.access_token
+      latestSession && latestSession.access_token !== session.access_token
         ? latestSession
         : await refreshAuthSession();
     if (!refreshedSession) {
@@ -197,6 +217,10 @@ export async function authenticatedRequest<T>(
       });
     } catch (retryError) {
       if (retryError instanceof APIError && retryError.status === 401) {
+        logLifecycleEvent("auth-request", "retry_401_clearing_session", {
+          path,
+          code: retryError.code,
+        });
         await useAuthStore.getState().clearSession();
       }
 
