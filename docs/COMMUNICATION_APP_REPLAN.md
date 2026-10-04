@@ -196,6 +196,8 @@ The original code-based hypothesis was that websocket disconnects could trigger 
 - Startup bootstrap now validates the current user before mounting the private app tree and exposes a retry state for transient failures.
 - API refresh is single-flight, persists rotated credentials before the retried request, and clears local auth only when the refresh endpoint reports an unauthorized session.
 - Generic websocket disconnects update connection state without triggering refresh or logout.
+- Mobile login and push registration now share the same persisted installation identity.
+- Device sessions now persist installation identity, and server-side logout invalidates active device registrations that belong to the same installation.
 - Settings sign-out now validates the session, deactivates the current push registration when its device row can be identified, then revokes the device session.
 - Physical-device reproduction, regression coverage, and the device-session-to-installation linkage decision remain open.
 

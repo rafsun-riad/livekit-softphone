@@ -1,4 +1,7 @@
+import uuid
+
 from apps.accounts.models import DeviceSession, User
+from apps.devices.models import Device, DevicePlatform, PushProvider
 from django.contrib.auth import authenticate
 from django.test import override_settings
 from django.urls import reverse
@@ -63,10 +66,12 @@ class AuthAPITests(APITestCase):
             password="StrongPass123!",
             display_name="Auth User",
         )
+        installation_id = str(uuid.uuid4())
 
         login_response = self.client.post(
             reverse("auth-login"),
             {
+                "installation_id": installation_id,
                 "phone_number": "+1 415 555 2671",
                 "password": "StrongPass123!",
                 "device_label": "Pixel Test",
@@ -79,6 +84,10 @@ class AuthAPITests(APITestCase):
         self.assertIn("device_session_token", login_response.data)
         self.assertEqual(
             DeviceSession.objects.filter(user=user, revoked_at__isnull=True).count(), 1
+        )
+        self.assertEqual(
+            str(DeviceSession.objects.get(user=user).installation_id),
+            installation_id,
         )
 
         refresh_response = self.client.post(
@@ -122,10 +131,13 @@ class AuthAPITests(APITestCase):
             password="StrongPass123!",
             display_name="Auth User",
         )
+        first_installation_id = str(uuid.uuid4())
+        second_installation_id = str(uuid.uuid4())
 
         first_login_response = self.client.post(
             reverse("auth-login"),
             {
+                "installation_id": first_installation_id,
                 "phone_number": "+1 415 555 2671",
                 "password": "StrongPass123!",
                 "device_label": "Pixel 8",
@@ -135,6 +147,7 @@ class AuthAPITests(APITestCase):
         second_login_response = self.client.post(
             reverse("auth-login"),
             {
+                "installation_id": second_installation_id,
                 "phone_number": "+1 415 555 2671",
                 "password": "StrongPass123!",
                 "device_label": "Pixel Tablet",
@@ -174,6 +187,57 @@ class AuthAPITests(APITestCase):
 
         self.assertEqual(second_refresh_response.status_code, status.HTTP_200_OK)
         self.assertIn("access_token", second_refresh_response.data)
+
+    def test_logout_invalidates_active_device_for_same_installation(self):
+        user = User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="user@example.com",
+            password="StrongPass123!",
+            display_name="Auth User",
+        )
+        installation_id = str(uuid.uuid4())
+
+        login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "installation_id": installation_id,
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {login_response.data['access_token']}"
+        )
+        register_response = self.client.post(
+            reverse("devices-register"),
+            {
+                "platform": DevicePlatform.ANDROID,
+                "push_provider": PushProvider.FCM,
+                "installation_id": installation_id,
+                "push_token": "fcm-token-1",
+                "app_version": "1.0.0",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_200_OK)
+        device = Device.objects.get(user=user, installation_id=installation_id)
+        self.assertTrue(device.is_active)
+
+        logout_response = self.client.post(
+            reverse("auth-logout"),
+            {"device_session_token": login_response.data["device_session_token"]},
+            format="json",
+        )
+
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+        device.refresh_from_db()
+        self.assertFalse(device.is_active)
+        self.assertIsNotNone(device.invalidated_at)
 
     def test_me_returns_current_user_for_valid_access_token(self):
         User.objects.create_user(

@@ -3,6 +3,7 @@ import {
   authenticatedRequest,
   type AuthenticatedRequestOptions,
 } from "@/src/lib/api/client";
+import { getInstallationId } from "@/src/lib/device/installation-id";
 
 import type {
   AuthSession,
@@ -24,10 +25,13 @@ export function register(payload: RegisterPayload) {
   });
 }
 
-export function login(payload: LoginPayload) {
+export async function login(payload: LoginPayload) {
+  const installationId = await getInstallationId();
+
   return apiRequest<AuthSession>("/api/auth/login/", {
     method: "POST",
     body: {
+      installation_id: installationId,
       phone_number: payload.phoneNumber,
       password: payload.password,
       device_label: payload.deviceLabel ?? "Expo Android Dev Build",

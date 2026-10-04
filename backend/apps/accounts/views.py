@@ -73,6 +73,7 @@ class LoginView(APIView):
 
         auth_payload = AuthService.login(
             user=serializer.validated_data["user"],
+            installation_id=serializer.validated_data.get("installation_id"),
             device_label=serializer.validated_data.get("device_label", ""),
         )
         return Response(serialize_auth_payload(auth_payload), status=status.HTTP_200_OK)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import uuid
 from typing import Any, ClassVar
 
 import phonenumbers
@@ -151,6 +152,7 @@ class DeviceSession(UUIDTimeStampedModel):
         on_delete=models.CASCADE,
         related_name="device_sessions",
     )
+    installation_id = models.UUIDField(null=True, blank=True)
     token_hash = models.CharField(max_length=64, unique=True)
     device_label = models.CharField(max_length=150, blank=True)
     last_used_at = models.DateTimeField(auto_now_add=True)
@@ -170,11 +172,13 @@ class DeviceSession(UUIDTimeStampedModel):
         cls,
         *,
         user: User,
+        installation_id: uuid.UUID | None = None,
         device_label: str = "",
     ) -> tuple[DeviceSession, str]:
         raw_token = secrets.token_urlsafe(48)
         session = cls.objects.create(
             user=user,
+            installation_id=installation_id,
             token_hash=cls.hash_token(raw_token),
             device_label=device_label,
         )

@@ -54,7 +54,7 @@ Remaining tasks:
 - Validate startup auth bootstrap across physical restart states.
 - Add dedicated automated auth-lifecycle regression coverage.
 - Validate durable installation identity behavior across physical restart, logout, and account-switch states.
-- Decide and implement direct device-session linkage on top of the new installation-aware device registration.
+- Decide whether installation-linked device sessions are sufficient or whether a stronger direct session-to-device association is still needed.
 - Add regression tests for auth restore, revoked sessions, and logout.
 
 Implementation begun:
@@ -64,6 +64,8 @@ Implementation begun:
 - Generic websocket disconnects no longer rotate credentials or clear auth.
 - Mobile push registration now uses a stable installation identity persisted outside auth state.
 - Backend device registration now treats installation identity as the primary current-device key and invalidates conflicting active rows during account switches or token replacement.
+- Mobile login now sends the same stable installation identity used by device registration.
+- Backend device sessions now persist installation identity, and logout invalidates matching active device registrations server-side.
 - Explicit logout deletes the identifiable current-device push registration before revoking the device session.
 
 Dependencies:

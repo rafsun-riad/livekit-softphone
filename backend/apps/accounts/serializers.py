@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import uuid
+
+from apps.devices.models import Device
 from django.contrib.auth import authenticate, password_validation
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -107,6 +111,7 @@ class RegisterSerializer(serializers.Serializer[dict[str, str]]):
 class LoginSerializer(serializers.Serializer[dict[str, str]]):
     phone_number = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True, trim_whitespace=False)
+    installation_id = serializers.UUIDField(required=False)
     device_label = serializers.CharField(
         max_length=150, required=False, allow_blank=True
     )
@@ -158,9 +163,16 @@ class AuthResponseSerializer(serializers.Serializer[dict[str, object]]):
 class AuthService:
     @staticmethod
     @transaction.atomic
-    def login(*, user: User, device_label: str = "") -> dict[str, object]:
+    def login(
+        *,
+        user: User,
+        installation_id: uuid.UUID | None = None,
+        device_label: str = "",
+    ) -> dict[str, object]:
         _, raw_token = DeviceSession.create_with_token(
-            user=user, device_label=device_label
+            user=user,
+            installation_id=installation_id,
+            device_label=device_label,
         )
         return {
             "access_token": build_access_token(user),
@@ -204,6 +216,16 @@ class AuthService:
 
         if session is None:
             return False
+
+        if session.installation_id is not None:
+            Device.objects.filter(
+                user=user,
+                installation_id=session.installation_id,
+                is_active=True,
+            ).update(
+                is_active=False,
+                invalidated_at=timezone.now(),
+            )
 
         session.revoke("logout")
         return True

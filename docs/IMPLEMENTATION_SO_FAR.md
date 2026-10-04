@@ -125,6 +125,8 @@ Reference plan:
 - Removed device-session refresh and auth clearing from generic websocket disconnect handling.
 - Added a stable SecureStore-backed installation identity on mobile and included it in backend device registration.
 - Backend device registration now reuses the same installation across push-token changes and invalidates older active device rows that share the same installation or push token across account switches.
+- Mobile login now sends the same stable installation identity used by push registration.
+- Device sessions now persist installation identity, and backend logout invalidates active device rows for the same installation even if the client does not delete the device row first.
 - Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
 - Device-session-to-installation linkage, hardware reproduction, and dedicated auth regression tests remain open.
 

@@ -2,6 +2,8 @@
 
 Status: Active implementation; aligned to the reconciled plan
 
+Legend: `✅` means implemented in code; unmarked items remain planned or partially validated.
+
 Purpose:
 
 - Track the communication-app feature set that is still planned.
@@ -70,18 +72,18 @@ Reference documents:
 - Searchable call history list
 - New call floating action button
 - Initiate new call from contacts and future conversation threads
-- Reuse existing outgoing, incoming, audio, and video call flows
+- ✅ Reuse existing outgoing, incoming, audio, and video call flows
 - Save or block action for unknown callers
 
 ### Call screen experience
 
-- Headerless, immersive full-screen call routes
-- NativeWind presentation scoped to incoming, outgoing, active audio, and active video calls
-- Caller/callee identity shown with initials until avatar data is available
-- Concise call status and duration instead of diagnostic session details
-- Bottom-anchored circular answer, decline, mute, speaker, camera, and end-call controls
-- Add a first-pass hold or resume control that pauses local media without changing the backend call state until provider-backed hold exists
-- Active video stage with full-screen remote video and a pinned local preview
+- ✅ Headerless, immersive full-screen call routes
+- ✅ NativeWind presentation scoped to incoming, outgoing, active audio, and active video calls
+- ✅ Caller/callee identity shown with initials until avatar data is available
+- ✅ Concise call status and duration instead of diagnostic session details
+- ✅ Bottom-anchored circular answer, decline, mute, speaker, camera, and end-call controls
+- ✅ Add a first-pass hold or resume control that pauses local media without changing the backend call state until provider-backed hold exists
+- ✅ Active video stage with full-screen remote video and a pinned local preview
 - Preserve existing LiveKit media, API lifecycle, websocket routing, CallKeep, and Notifee behavior
 - Keep camera flip and audio-route picker out of the first pass until supported and wired reliably
 
@@ -103,9 +105,9 @@ Reference documents:
 ### Auth and loading UX
 
 - Persistent login across supported restart states
-- Startup loading screen while auth bootstrap runs
-- Silent refresh when access token is expired but device session is valid
-- Clean logout that revokes the backend session and current-device push reachability
+- ✅ Startup loading screen while auth bootstrap runs
+- ✅ Silent refresh when access token is expired but device session is valid
+- ✅ Clean logout that revokes the backend session and current-device push reachability
 
 ### Notifications and lifecycle
 
