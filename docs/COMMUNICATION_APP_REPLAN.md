@@ -379,7 +379,50 @@ Compatibility rule:
 - The mobile client must stay provider-agnostic.
 - The backend must continue deciding call provider and media authorization.
 
-## 16. Navigation / UI Architecture
+## 16. Mobile Call Screen Redesign Plan
+
+The current mobile call screens are functionally correct but visually read as diagnostic application pages rather than polished communication surfaces. The active audio and video routes expose raw call-state and media-session details, the incoming and outgoing routes rely on large blocks of explanatory copy, and the call stack still renders standard screen headers. This is sufficient for call plumbing validation, but it is not sufficient for the communication-first product direction.
+
+### UX target
+
+- Redesign the in-app call journey around a WhatsApp-inspired interaction model across four surfaces: incoming answer, outgoing/ringing, active audio, and active video.
+- Use immersive full-screen layouts with strong contact identity, concise status copy, and bottom-anchored circular controls.
+- Keep the redesign inspired by WhatsApp's hierarchy and pacing without turning it into a near-clone.
+- Preserve provider-agnostic behavior and existing backend lifecycle contracts.
+
+### Architecture approach
+
+- Extract shared active-call orchestration from the current `audio.tsx` and `video.tsx` routes into reusable call-screen state logic.
+- Add reusable call UI primitives for contact hero, call shell, bottom control dock, status copy, and video stage.
+- Convert the call route stack into headerless full-screen routes so tabs and standard stack chrome do not appear during call flows.
+- Keep `LiveKitCallRoom` as the media boundary and only extend it where redesigned controls require real media capability changes.
+
+### NativeWind requirement
+
+- All new call-screen UI design and styling work must be implemented in NativeWind.
+- Scope NativeWind adoption for this work to the call surfaces and shared call UI primitives so the redesign does not become a broad app-wide styling rewrite.
+- Keep call-state orchestration, routing, realtime, and media-session logic separate from the NativeWind presentation layer.
+
+### Route-specific plan
+
+- Incoming call screen: emphasize caller identity and answer/reject actions with minimal explanatory text.
+- Outgoing/ringing screen: show a cleaner waiting surface with live state transitions and cancel action.
+- Active audio screen: show large contact identity, state or duration, and a concise control dock for mute, speaker, and end.
+- Active video screen: show full-screen remote video, pinned local preview, top status overlay, and bottom control dock for mute, camera, and end.
+
+### Constraints
+
+- The current mobile data model does not expose avatar images, so the first redesign pass should use initials and typography rather than photo-based layouts.
+- The current implementation does not yet expose richer in-call controls such as camera flip or route picker wiring. These should be treated as follow-up capabilities unless the media SDK supports them cleanly during implementation.
+- The redesign must not break existing incoming-call routing from websocket, push, CallKeep, or Notifee flows.
+
+### Verification
+
+- Static verification: TypeScript, Expo export, and Expo prebuild.
+- Manual Android verification: incoming audio, incoming video, outgoing audio, outgoing video, permission denial and retry, route transitions, and end-call cleanup.
+- Regression rule: the redesign must improve presentation without regressing current call lifecycle reliability.
+
+## 17. Navigation / UI Architecture
 
 ### Current state
 
@@ -396,22 +439,24 @@ Compatibility rule:
 
 The app should show a deliberate loading state after splash while auth bootstrap and startup initialization complete. Private routes should not rely on immediate post-hydration access alone.
 
-## 17. NativeWind Migration Strategy
+## 18. NativeWind Migration Strategy
 
 - Do not combine a large styling rewrite with auth and lifecycle fixes.
+- Exception: the call-screen redesign may use NativeWind immediately as a tightly scoped slice covering only active, incoming, and outgoing call UI plus shared call presentation primitives.
 - Migrate after core lifecycle and communication flows are stable.
 - Move slice by slice using shared primitives for list rows, cards, top bars, FABs, and search bars.
 
 Recommended order:
 
 1. Loading and auth surfaces
-2. New three-tab app shell
-3. Messages
-4. Calls list and details
-5. Contacts
-6. Profile and Settings
+2. Call screens and shared call presentation primitives
+3. New three-tab app shell
+4. Messages
+5. Calls list and details
+6. Contacts
+7. Profile and Settings
 
-## 18. Backend Implementation Phases
+## 19. Backend Implementation Phases
 
 ### Gate 0: Repository and Architecture Reconciliation
 
@@ -444,7 +489,7 @@ Recommended order:
 
 - Add sync endpoints and block rules.
 
-## 19. Mobile Implementation Phases
+## 20. Mobile Implementation Phases
 
 ### Gate 1 work
 
@@ -458,20 +503,27 @@ Recommended order:
 - Separate message and call notification handling.
 - Verify background and terminated lifecycle paths.
 
+### Call screen redesign work
+
+- Extract shared call-screen state and route presentation primitives.
+- Rebuild incoming, outgoing, audio, and video call screens around a WhatsApp-inspired full-screen layout.
+- Implement all call-screen presentation work in NativeWind.
+- Preserve existing call lifecycle, join-media, CallKeep, Notifee, and realtime route behavior.
+
 ### Gate 5 work
 
 - Add `Messages` feature area under `mobile/src/features/messaging/`.
 - Use TanStack Query for message and conversation server state.
 - Convert the visible shell to `Messages`, `Calls`, and `Contacts`.
 
-## 20. Native Android Implementation Phases
+## 21. Native Android Implementation Phases
 
 - Validate generated Android config after auth and push changes.
 - Investigate screen-timeout behavior with hardware and system diagnostics.
 - Scope any wake behavior to active call state only.
 - Preserve CallKeep, Notifee, and LiveKit integration while adjusting lifecycle behavior.
 
-## 21. Testing Strategy
+## 22. Testing Strategy
 
 ### Backend automated tests
 
@@ -497,7 +549,7 @@ Recommended order:
 
 - Required for FCM, terminated-state notifications, CallKeep, Notifee, ringtone, vibration, screen wake, contacts permission, LiveKit media, and screen timeout
 
-## 22. Physical Device Test Matrix
+## 23. Physical Device Test Matrix
 
 ### Authentication
 
@@ -537,7 +589,7 @@ Recommended order:
 - connected video call
 - post-call idle
 
-## 23. Security Considerations
+## 24. Security Considerations
 
 - Do not treat push tokens as the only stable device identity.
 - Link logout semantics to current installation reachability.
@@ -546,14 +598,14 @@ Recommended order:
 - Use audited cryptographic libraries and documented key lifecycle rules.
 - Enforce block policy consistently across REST, websocket, push, and media-join authorization.
 
-## 24. Performance Considerations
+## 25. Performance Considerations
 
 - Avoid refresh loops triggered by reconnect churn.
 - Keep message and conversation server state in TanStack Query.
 - Use pagination for call history and message history.
 - Use minimal push payloads when native rendering already generates richer UI.
 
-## 25. Failure and Recovery Scenarios
+## 26. Failure and Recovery Scenarios
 
 - Expired access token with valid device session should recover silently during bootstrap.
 - Revoked device session should clear local auth and return the user to auth routes.
@@ -561,25 +613,26 @@ Recommended order:
 - Token rotation failures should not silently strand the client in an unrecoverable state.
 - Unsupported Android states must be documented rather than hidden.
 
-## 26. Regression Matrix
+## 27. Regression Matrix
 
-| Area           | Existing behavior                       | New behavior                                                | Must not regress |
-| -------------- | --------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| Login          | Secure session exists                   | Startup bootstrap and hidden auth transitions               | Yes              |
-| Logout         | Revokes device session only             | Revoke current session and current-device push reachability | Yes              |
-| Device session | Persisted in SecureStore                | Survives restart with deterministic refresh policy          | Yes              |
-| Token refresh  | Retry on 401                            | Add startup refresh and remove disconnect-driven rotation   | Yes              |
-| Messages       | Not implemented                         | E2EE 1:1 messaging                                          | N/A              |
-| Calls          | LiveKit audio and video calling         | Integrated into new shell                                   | Yes              |
-| Contacts       | Manual accepted contacts                | Add sync and unknown-user policy                            | Yes              |
-| FCM            | Call push only                          | Call plus message notification architecture                 | Yes              |
-| CallKeep       | Incoming native call UI                 | Preserve terminated incoming-call behavior                  | Yes              |
-| Notifee        | Incoming-call notifications and actions | Preserve call actions and add safe message channels         | Yes              |
-| Screen timeout | Bug reported                            | Respect system timeout outside call-only scope              | Fix              |
-| LiveKit        | Working provider                        | Preserve with messaging integration                         | Yes              |
-| Expo Router    | Working signed-in shell                 | Convert to Messages, Calls, Contacts                        | Yes              |
+| Area           | Existing behavior                             | New behavior                                                                                 | Must not regress |
+| -------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------- |
+| Login          | Secure session exists                         | Startup bootstrap and hidden auth transitions                                                | Yes              |
+| Logout         | Revokes device session only                   | Revoke current session and current-device push reachability                                  | Yes              |
+| Device session | Persisted in SecureStore                      | Survives restart with deterministic refresh policy                                           | Yes              |
+| Token refresh  | Retry on 401                                  | Add startup refresh and remove disconnect-driven rotation                                    | Yes              |
+| Messages       | Not implemented                               | E2EE 1:1 messaging                                                                           | N/A              |
+| Calls          | LiveKit audio and video calling               | Integrated into new shell                                                                    | Yes              |
+| Contacts       | Manual accepted contacts                      | Add sync and unknown-user policy                                                             | Yes              |
+| FCM            | Call push only                                | Call plus message notification architecture                                                  | Yes              |
+| CallKeep       | Incoming native call UI                       | Preserve terminated incoming-call behavior                                                   | Yes              |
+| Notifee        | Incoming-call notifications and actions       | Preserve call actions and add safe message channels                                          | Yes              |
+| Screen timeout | Bug reported                                  | Respect system timeout outside call-only scope                                               | Fix              |
+| LiveKit        | Working provider                              | Preserve with messaging integration                                                          | Yes              |
+| Expo Router    | Working signed-in shell                       | Convert to Messages, Calls, Contacts                                                         | Yes              |
+| Call UI        | Functional but diagnostic in-app call screens | WhatsApp-inspired NativeWind call surfaces across incoming, outgoing, audio, and video flows | Yes              |
 
-## 27. Documentation/Tracker Updates
+## 28. Documentation/Tracker Updates
 
 This re-plan requires the tracker files to reflect the real current state:
 
@@ -596,8 +649,9 @@ Add a dedicated section for newly identified lifecycle and reliability requireme
 - sound, ringtone, and vibration behavior
 - Android lifecycle limitations
 - FCM token and registration reliability
+- NativeWind-only call-screen redesign requirements
 
-## 28. Risks and Mitigations
+## 29. Risks and Mitigations
 
 - Risk: the logout bug remains non-reproducible during desk review.
   - Mitigation: gate the first implementation phase around instrumentation and reproduction, not blind rewrites.
@@ -609,8 +663,10 @@ Add a dedicated section for newly identified lifecycle and reliability requireme
   - Mitigation: make E2EE a hard feasibility gate before full messaging implementation.
 - Risk: UI migration increases blast radius.
   - Mitigation: defer NativeWind-heavy migration until lifecycle work is stable.
+- Risk: the NativeWind call-screen redesign leaks into unrelated mobile surfaces.
+  - Mitigation: keep NativeWind adoption for this phase isolated to call routes and shared call presentation primitives.
 
-## 29. Architecture Decisions Required
+## 30. Architecture Decisions Required
 
 1. Device identity model
 2. DeviceSession to Device linkage model
@@ -619,23 +675,25 @@ Add a dedicated section for newly identified lifecycle and reliability requireme
 5. E2EE protocol and library choice
 6. Phone-contact sync privacy model
 7. Unknown-user calling and messaging authorization details
+8. Final in-call control set for the first NativeWind redesign pass
 
-## 30. Final Recommended Execution Order
+## 31. Final Recommended Execution Order
 
 1. Gate 0: repository and documentation reconciliation
 2. Gate 1: authentication persistence and device-session hardening
-3. Gate 2: Android lifecycle and notification reliability
-4. Screen-timeout investigation and scoped fix
-5. Gate 3: E2EE feasibility spike
-6. Gate 4: backend messaging foundation
-7. Gate 5: mobile messaging foundation
-8. Encrypted media
-9. Calls and messaging integration
-10. Contact synchronization and policy completion
-11. NativeWind migration
-12. Full regression and physical-device validation
+3. Call-screen state extraction and NativeWind redesign
+4. Gate 2: Android lifecycle and notification reliability
+5. Screen-timeout investigation and scoped fix
+6. Gate 3: E2EE feasibility spike
+7. Gate 4: backend messaging foundation
+8. Gate 5: mobile messaging foundation
+9. Encrypted media
+10. Calls and messaging integration
+11. Contact synchronization and policy completion
+12. Broader NativeWind migration
+13. Full regression and physical-device validation
 
-## 31. Definition of Done
+## 32. Definition of Done
 
 ### Authentication
 
@@ -693,6 +751,16 @@ Device A encrypts
 ### Existing Calling
 
 Existing LiveKit audio and video calling plus native incoming-call handling must remain functional.
+
+### Call Screen UX
+
+```text
+User enters incoming, outgoing, audio, or video call flow
+-> Standard stack chrome stays hidden
+-> Full-screen NativeWind call UI appears
+-> Primary call controls are immediately reachable
+-> Active call transitions remain reliable
+```
 
 ### Future Telephony
 
