@@ -52,7 +52,7 @@ Remaining tasks:
 
 - Reproduce the logout-on-reopen bug on hardware.
 - Validate startup auth bootstrap across physical restart states.
-- Add dedicated automated auth-lifecycle regression coverage.
+- Extend automated auth-lifecycle regression coverage from backend cases into restore-oriented mobile or integration flows where the toolchain permits.
 - Validate durable installation identity behavior across physical restart, logout, and account-switch states.
 - Validate the new direct device-session to device linkage across push-token rotation, logout, and account-switch states.
 - Add regression tests for auth restore, revoked sessions, and logout.
@@ -67,6 +67,7 @@ Implementation begun:
 - Mobile login now sends the same stable installation identity used by device registration.
 - Backend device sessions now persist installation identity, and logout invalidates matching active device registrations server-side.
 - Device registration now sends and stores the current device-session association for the active install.
+- Existing databases now migrate installation identity safely through a per-row backfill before the uniqueness constraint is applied.
 - Explicit logout deletes the identifiable current-device push registration before revoking the device session.
 
 Dependencies:

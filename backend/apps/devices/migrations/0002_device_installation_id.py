@@ -5,6 +5,14 @@ import uuid
 from django.db import migrations, models
 
 
+def assign_unique_installation_ids(apps, schema_editor):
+    Device = apps.get_model("devices", "Device")
+
+    for device in Device.objects.filter(installation_id__isnull=True).iterator():
+        device.installation_id = uuid.uuid4()
+        device.save(update_fields=["installation_id"])
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("devices", "0001_initial"),
@@ -12,6 +20,15 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
+            model_name="device",
+            name="installation_id",
+            field=models.UUIDField(blank=True, editable=False, null=True),
+        ),
+        migrations.RunPython(
+            assign_unique_installation_ids,
+            migrations.RunPython.noop,
+        ),
+        migrations.AlterField(
             model_name="device",
             name="installation_id",
             field=models.UUIDField(default=uuid.uuid4, editable=False),

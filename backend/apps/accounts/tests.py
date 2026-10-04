@@ -275,6 +275,38 @@ class AuthAPITests(APITestCase):
         self.assertFalse(device.is_active)
         self.assertIsNotNone(device.invalidated_at)
 
+    def test_refresh_rejects_revoked_device_session(self):
+        user = User.objects.create_user(
+            phone_number="+1 415 555 2671",
+            email="user@example.com",
+            password="StrongPass123!",
+            display_name="Auth User",
+        )
+
+        login_response = self.client.post(
+            reverse("auth-login"),
+            {
+                "installation_id": str(uuid.uuid4()),
+                "phone_number": "+1 415 555 2671",
+                "password": "StrongPass123!",
+                "device_label": "Pixel 8",
+            },
+            format="json",
+        )
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+        session = DeviceSession.objects.get(user=user, revoked_at__isnull=True)
+        session.revoke("server-side-test")
+
+        refresh_response = self.client.post(
+            reverse("auth-refresh"),
+            {"device_session_token": login_response.data["device_session_token"]},
+            format="json",
+        )
+
+        self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(refresh_response.data["code"], "invalid_device_session")
+
     def test_me_returns_current_user_for_valid_access_token(self):
         User.objects.create_user(
             phone_number="+1 415 555 2671",

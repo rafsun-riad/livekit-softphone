@@ -127,8 +127,10 @@ Reference plan:
 - Mobile login now sends the same stable installation identity used by push registration.
 - Device sessions now persist installation identity, and backend logout invalidates active device rows for the same installation even if the client does not delete the device row first.
 - Device registration now accepts the current device-session token and stores a direct session-to-device association for the active installation.
+- Device installation identity migration now backfills unique installation IDs per existing device row before adding the uniqueness constraint, so existing databases can migrate cleanly.
 - Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
-- Device-session-to-installation linkage, hardware reproduction, and dedicated auth regression tests remain open.
+- Added backend auth regression coverage for revoked device sessions, session-linked device invalidation, and installation-linked logout behavior.
+- Hardware reproduction and mobile lifecycle validation remain open.
 
 ### Call screen redesign work started
 
