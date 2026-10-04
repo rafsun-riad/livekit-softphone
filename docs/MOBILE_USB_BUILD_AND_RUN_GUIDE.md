@@ -198,6 +198,43 @@ If you added or changed a native dependency and the build looks wrong:
 1. Run `npx expo prebuild --clean --platform android`.
 2. Then run `npx expo run:android --device` again.
 
+If Gradle reports `BUILD SUCCESSFUL` but Expo then exits with
+`ENOSPC: System limit for number of file watchers reached` while starting
+Metro, the native build succeeded but Expo could not finish its install/launch
+workflow because Linux ran out of inotify watches. This is a host watcher-limit
+problem, not an Android compilation error.
+
+Check the current per-user limit:
+
+```bash
+cat /proc/sys/fs/inotify/max_user_watches
+```
+
+For an immediate retry, raise the limit until the next reboot:
+
+```bash
+sudo sysctl -w fs.inotify.max_user_watches=524288
+```
+
+To keep the higher limit across reboots:
+
+```bash
+echo 'fs.inotify.max_user_watches=524288' | sudo tee /etc/sysctl.d/99-expo-metro.conf
+sudo sysctl --system
+```
+
+Then rerun:
+
+```bash
+cd /home/md-rafsun-ul-haque/projects/livekit-softphone/mobile
+npx expo run:android --device
+```
+
+Gradle should reuse the successful build where possible. The Expo module list
+may include `expo-keep-awake` because it is part of the installed Expo SDK;
+its presence in build output alone does not mean the app is keeping the screen
+awake.
+
 ## Verified project commands
 
 These commands have already been used successfully in this repository:

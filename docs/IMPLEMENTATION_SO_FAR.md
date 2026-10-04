@@ -47,8 +47,8 @@ Reference plan:
 
 ### Confirmed lifecycle gaps
 
-- No dedicated auth bootstrap flow before opening the signed-in shell
-- Logout revokes the device session but does not invalidate current-device push reachability
+- Startup auth bootstrap is implemented but has not yet been validated on physical devices.
+- Logout deactivates the current push registration when its token/device row is identifiable; durable installation identity and session linkage remain open.
 - Device registrations are not linked to device sessions or installation identity
 - Call push handling needs lifecycle validation and dedup review
 
@@ -104,7 +104,7 @@ Reference plan:
 
 ### Confirmed gaps
 
-- Logout does not currently invalidate the backend device registration for the current installation.
+- Logout invalidates the current registration when the push token/device can be identified; registration-to-installation linkage remains incomplete.
 - Device registrations can outlive the auth session that created them.
 - Current shell does not match the approved product structure.
 
@@ -113,6 +113,32 @@ Reference plan:
 - Session loss after app reopen may be caused by websocket-disconnect-driven refresh-token rotation.
 - Incoming-call notifications may duplicate because the backend sends notification text while the mobile app also renders native incoming-call UI.
 - Screen timeout may be influenced by native media or call behavior rather than regular app screens.
+
+## Implementation Update On 2026-10-04
+
+### Gate 1 work started
+
+- Added startup auth bootstrap after SecureStore hydration; private routes wait for current-user validation.
+- Expired access tokens recover through the authenticated API refresh path before realtime providers mount.
+- Transient network/refresh failures preserve the stored session and show a retryable startup error.
+- Made refresh requests single-flight and persist the rotated device-session token before retrying the protected request.
+- Removed device-session refresh and auth clearing from generic websocket disconnect handling.
+- Settings sign-out now deactivates the matching current-device push registration before revoking the device session, when its registration can be identified.
+- Device-session-to-installation linkage, hardware reproduction, and dedicated auth regression tests remain open.
+
+### Call screen redesign work started
+
+- Added shared NativeWind call presentation primitives and removed standard call-stack headers.
+- Redesigned incoming, outgoing, active audio, and active video screens.
+- Extracted shared call polling, permission, media authorization, timer, and end-call orchestration into `mobile/src/features/calls/use-active-call.ts`.
+- Kept the existing call APIs, LiveKit room, permission flow, and route transitions in place.
+- Physical Android lifecycle, permission-denial/retry, and media verification remain open.
+
+### Validation completed
+
+- Mobile TypeScript check: passed.
+- Android Expo export: passed.
+- Android Expo prebuild: passed.
 
 ## What This File Intentionally Does Not Claim
 
@@ -123,15 +149,15 @@ Reference plan:
 
 ## Next Planned Milestone
 
-The next milestone is not messaging implementation. The next milestone is Gate 0 plus Gate 1 from `docs/COMMUNICATION_APP_REPLAN.md`:
+The next milestone is to finish Gate 1 and the call-screen redesign from `docs/COMMUNICATION_APP_REPLAN.md`:
 
-- reconcile the planning docs with repository reality
-- reproduce the auth persistence bug
-- add a dedicated auth bootstrap flow
-- harden device-session and device-registration behavior
-- validate Android lifecycle behavior before broader product expansion
+- type-check and export the NativeWind call surfaces
+- add focused auth lifecycle regression coverage where the existing test setup permits
+- validate startup restore, explicit logout, and revoked-session behavior
+- reproduce the reported auth and screen-timeout behavior on physical Android hardware
+- validate incoming, outgoing, audio, and video call lifecycle behavior on physical Android hardware
 
 ## Last Updated
 
-- Date: 2026-09-29
+- Date: 2026-10-04
 - Updated by: GitHub Copilot

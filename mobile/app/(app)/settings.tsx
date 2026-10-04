@@ -12,8 +12,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { env } from "@/src/config/env";
-import { logout } from "@/src/features/auth/api";
-import { getDevices } from "@/src/features/devices/api";
+import { getCurrentUser, logout } from "@/src/features/auth/api";
+import { deleteDevice, getDevices } from "@/src/features/devices/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { syncCurrentDeviceRegistration } from "@/src/lib/notifications/push-registration";
 import { applyManualPushSyncResult } from "@/src/providers/push-notifications-provider";
@@ -35,11 +35,12 @@ export default function SettingsScreen() {
   const registrationStatus = usePushStore(
     (state: PushState) => state.registrationStatus,
   );
-  const nativePushToken = usePushStore(
-    (state: PushState) => state.nativePushToken,
-  );
   const registeredDeviceId = usePushStore(
     (state: PushState) => state.registeredDeviceId,
+  );
+  const resetPushState = usePushStore((state: PushState) => state.reset);
+  const nativePushToken = usePushStore(
+    (state: PushState) => state.nativePushToken,
   );
   const lastError = usePushStore((state: PushState) => state.lastError);
   const lastSyncedAt = usePushStore((state: PushState) => state.lastSyncedAt);
@@ -58,8 +59,41 @@ export default function SettingsScreen() {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: logout,
+    mutationFn: async () => {
+      const initialSession = useAuthStore.getState().session;
+      if (!initialSession) {
+        throw new Error("You must sign in first.");
+      }
+
+      await getCurrentUser();
+
+      if (registeredDeviceId || nativePushToken) {
+        const devices = await getDevices();
+        const currentDevice =
+          devices.find((device) => device.id === registeredDeviceId) ??
+          devices.find(
+            (device) =>
+              device.is_active && device.push_token === nativePushToken,
+          );
+
+        if (currentDevice?.is_active) {
+          await deleteDevice(currentDevice.id);
+        }
+      }
+
+      const currentSession = useAuthStore.getState().session;
+      if (!currentSession) {
+        throw new Error("Your session is no longer available.");
+      }
+
+      return logout({
+        accessToken: currentSession.access_token,
+        deviceSessionToken: currentSession.device_session_token,
+      });
+    },
     onSuccess: async () => {
+      resetPushState();
+      queryClient.clear();
       await clearSession();
     },
   });
@@ -206,10 +240,7 @@ export default function SettingsScreen() {
             return;
           }
 
-          logoutMutation.mutate({
-            accessToken: session.access_token,
-            deviceSessionToken: session.device_session_token,
-          });
+          logoutMutation.mutate();
         }}
         style={[
           styles.primaryAction,

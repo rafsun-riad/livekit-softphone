@@ -24,21 +24,21 @@ Reference plan:
 
 ## Next Immediate Actions
 
-1. Review `docs/COMMUNICATION_APP_REPLAN.md` and approve the reconciled architecture and execution order.
-2. Reproduce the reopen-logs-out behavior on physical Android hardware with instrumentation.
-3. Reproduce the screen-timeout behavior on physical Android hardware and determine whether it is tied to active call state or broader app state.
-4. Validate current incoming-call behavior across foreground, background, swipe-away, and terminated states before changing push logic.
+1. Add focused automated auth-lifecycle regression coverage.
+2. Verify the redesigned call routes on physical Android hardware.
+3. Reproduce the reopen-logs-out behavior on physical Android hardware with instrumentation.
+4. Reproduce the screen-timeout behavior on physical Android hardware and determine whether it is tied to active call state or broader app state.
+5. Validate current incoming-call behavior across foreground, background, swipe-away, and terminated states before changing push logic.
 
 ## Execution Gates
 
 ### Gate 0: Repository and Architecture Reconciliation
 
-Status: Complete in documentation, awaiting review approval
+Status: Complete; implementation has started from the reconciled plan
 
 Remaining tasks:
 
-- Review and approve the reconciled communication re-plan.
-- Confirm the tracker files now reflect the real repository state.
+- Reconcile the execution order and tracker files with repository state.
 
 Dependencies:
 
@@ -46,20 +46,47 @@ Dependencies:
 
 ### Gate 1: Authentication Persistence and Device Hardening
 
-Status: Not started
+Status: In progress
 
 Remaining tasks:
 
-- Reproduce the logout-on-reopen bug.
-- Add a dedicated startup auth bootstrap flow.
-- Remove generic websocket-disconnect-driven token rotation.
-- Decide and implement current-device logout invalidation behavior.
+- Reproduce the logout-on-reopen bug on hardware.
+- Validate startup auth bootstrap across physical restart states.
+- Add dedicated automated auth-lifecycle regression coverage.
+- Decide and implement durable installation identity and device-session linkage.
 - Strengthen device-session and device-registration linkage.
 - Add regression tests for auth restore, revoked sessions, and logout.
 
+Implementation begun:
+
+- Startup bootstrap validates the current user before private routes mount.
+- API refresh is single-flight and transient failures preserve the persisted session.
+- Generic websocket disconnects no longer rotate credentials or clear auth.
+- Explicit logout deletes the identifiable current-device push registration before revoking the device session.
+
 Dependencies:
 
-- Gate 0 review approval.
+- Gate 0 complete.
+
+### Call Screen Redesign
+
+Status: In progress
+
+Remaining tasks:
+
+- Verify incoming, outgoing, active audio, and active video layouts on Android.
+- Validate permission denial/retry, call transitions, and end-call cleanup on hardware.
+
+Implementation begun:
+
+- Added shared NativeWind call presentation primitives and headerless routes.
+- Redesigned incoming and outgoing screens and active audio/video presentation.
+- Extracted shared call polling, permission, media authorization, timer, and end-call orchestration.
+- Preserved existing call API, media-session, and route transition logic.
+
+Dependencies:
+
+- Gate 1 stability; physical-device auth validation remains outstanding.
 
 ### Gate 2: Android Lifecycle and Notification Reliability
 
@@ -230,5 +257,5 @@ Dependencies:
 
 ## Last Updated
 
-- Date: 2026-09-29
+- Date: 2026-10-04
 - Updated by: GitHub Copilot

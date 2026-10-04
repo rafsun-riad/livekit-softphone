@@ -3,9 +3,15 @@ import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { PhoneOff } from "lucide-react-native";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
-import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
+import {
+  CallAvatar,
+  CallControl,
+  CallError,
+  CallScreenShell,
+  CallStatus,
+} from "@/src/components/calls/call-presentation";
 import { cancelCall, createCall, getCall } from "@/src/features/calls/api";
 import {
   buildActiveCallRoute,
@@ -14,7 +20,33 @@ import {
 } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useCallStore } from "@/src/stores/call-store";
-import { appColors, appTypography } from "@/src/theme/app-theme";
+
+function getOutgoingStatus(state: string | undefined, isStarting: boolean) {
+  if (isStarting) {
+    return "Starting your call…";
+  }
+
+  switch (state) {
+    case "ringing":
+      return "Ringing…";
+    case "connecting":
+      return "Connecting…";
+    case "accepted":
+      return "Call answered";
+    case "busy":
+      return "Line is busy";
+    case "failed":
+      return "Call could not connect";
+    case "timed_out":
+      return "No answer";
+    case "cancelled":
+    case "rejected":
+    case "ended":
+      return "Call ended";
+    default:
+      return "Preparing your call…";
+  }
+}
 
 export default function OutgoingCallScreen() {
   const params = useLocalSearchParams<{
@@ -99,14 +131,6 @@ export default function OutgoingCallScreen() {
     }
   }, [call, upsertCall]);
 
-  if (!call && !recipientUserId) {
-    return (
-      <AppScrollScreen centerContent contentContainerStyle={styles.content}>
-        <Text style={styles.helperText}>Loading call...</Text>
-      </AppScrollScreen>
-    );
-  }
-
   const calleeName =
     call?.recipient.display_name ||
     call?.recipient.phone_number_normalized ||
@@ -114,160 +138,66 @@ export default function OutgoingCallScreen() {
     recipientPhone ||
     "Unknown contact";
 
-  const screenSubtitle = call
-    ? `Call state: ${call.state}`
-    : createMutation.isPending
-      ? `Starting ${requestedCallType} call...`
-      : `Unable to start ${requestedCallType} call`;
-
   return (
-    <AppScrollScreen centerContent contentContainerStyle={styles.content}>
-      <Text style={styles.kicker}>Outgoing</Text>
-      <Text style={styles.title}>{calleeName}</Text>
-      <Text style={styles.subtitle}>{screenSubtitle}</Text>
-      <View style={styles.heroCircle}>
-        <Text style={styles.heroInitial}>
-          {calleeName.slice(0, 1).toUpperCase()}
+    <CallScreenShell>
+      <View className="items-center pt-6">
+        <CallStatus>
+          {call?.call_type ?? requestedCallType} call
+        </CallStatus>
+      </View>
+
+      <View className="flex-1 items-center justify-center">
+        <CallAvatar name={calleeName} />
+        <Text className="mt-8 max-w-full text-center text-3xl font-bold text-white">
+          {calleeName}
+        </Text>
+        <Text className="mt-2 text-base text-slate-300">
+          {getOutgoingStatus(
+            call?.state,
+            createMutation.isPending || (!call && Boolean(recipientUserId)),
+          )}
         </Text>
       </View>
-      <Text style={styles.body}>
-        {call
-          ? `Waiting for the recipient to answer. If they accept, the app will move into the active ${call.call_type} call screen automatically.`
-          : "Preparing the call screen first, then contacting the backend so call state and errors stay visible here."}
-      </Text>
 
-      {callQuery.isError ? (
-        <Text style={styles.errorText}>
-          {getAPIErrorMessage(callQuery.error)}
-        </Text>
-      ) : null}
+      <View className="gap-6 pb-4">
+        {callQuery.isError ? (
+          <CallError>{getAPIErrorMessage(callQuery.error)}</CallError>
+        ) : null}
+        {createMutation.isError ? (
+          <CallError>{getAPIErrorMessage(createMutation.error)}</CallError>
+        ) : null}
+        {cancelMutation.isError ? (
+          <CallError>{getAPIErrorMessage(cancelMutation.error)}</CallError>
+        ) : null}
 
-      {createMutation.isError ? (
-        <Text style={styles.errorText}>
-          {getAPIErrorMessage(createMutation.error)}
-        </Text>
-      ) : null}
+        <View className="items-center">
+          <CallControl
+            disabled={
+              createMutation.isPending ||
+              cancelMutation.isPending ||
+              Boolean(call && !call.can_cancel)
+            }
+            label={
+              cancelMutation.isPending
+                ? "Cancelling"
+                : call
+                  ? "Cancel call"
+                  : "Back"
+            }
+            onPress={() => {
+              if (call) {
+                cancelMutation.mutate(call.id);
+                return;
+              }
 
-      {cancelMutation.isError ? (
-        <Text style={styles.errorText}>
-          {getAPIErrorMessage(cancelMutation.error)}
-        </Text>
-      ) : null}
-
-      <Pressable
-        disabled={
-          createMutation.isPending ||
-          cancelMutation.isPending ||
-          Boolean(call && !call.can_cancel)
-        }
-        onPress={() => {
-          if (call) {
-            cancelMutation.mutate(call.id);
-            return;
-          }
-
-          router.replace("/(app)/contacts");
-        }}
-        style={styles.endButton}
-      >
-        <PhoneOff color="#fff" size={18} strokeWidth={2.2} />
-        <Text style={styles.endButtonLabel}>
-          {createMutation.isPending
-            ? "Starting..."
-            : cancelMutation.isPending
-              ? "Cancelling..."
-              : call
-                ? "Cancel call"
-                : "Back to contacts"}
-        </Text>
-      </Pressable>
-    </AppScrollScreen>
+              router.replace("/(app)/contacts");
+            }}
+            variant="danger"
+          >
+            <PhoneOff color="#ffffff" size={22} strokeWidth={2.2} />
+          </CallControl>
+        </View>
+      </View>
+    </CallScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  kicker: {
-    color: appColors.amber,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-    marginBottom: 14,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: appColors.textPrimary,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 34,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    color: appColors.textSecondary,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 16,
-    marginTop: 10,
-  },
-  heroCircle: {
-    alignItems: "center",
-    backgroundColor: appColors.surfaceStrong,
-    borderColor: appColors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 140,
-    justifyContent: "center",
-    marginBottom: 28,
-    marginTop: 28,
-    width: 140,
-  },
-  heroInitial: {
-    color: appColors.primarySoft,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 48,
-    fontWeight: "700",
-  },
-  body: {
-    color: appColors.textMuted,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 24,
-    maxWidth: 320,
-    textAlign: "center",
-  },
-  helperText: {
-    color: appColors.textSecondary,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 16,
-  },
-  errorText: {
-    color: "#fca5a5",
-    fontFamily: appTypography.fontFamily,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 14,
-    textAlign: "center",
-  },
-  endButton: {
-    alignItems: "center",
-    backgroundColor: "#b91c1c",
-    borderRadius: 18,
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "center",
-    minWidth: 190,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  endButtonLabel: {
-    color: "#fff",
-    fontFamily: appTypography.fontFamily,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-});

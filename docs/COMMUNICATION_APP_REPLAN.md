@@ -1,6 +1,6 @@
 # Communication App Replan
 
-Status: Reconciled planning document for review
+Status: Active implementation plan; Gate 0 documentation reconciled
 
 Purpose:
 
@@ -20,7 +20,7 @@ The repository already contains substantial backend and mobile calling foundatio
 
 The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, phone-contact sync, and the approved three-tab product shell are not implemented. The current visible mobile shell is still `Home`, `Contacts`, `Search`, and `Profile`, not `Messages`, `Calls`, and `Contacts`.
 
-Two lifecycle issues now block safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence yet, but the code exposes a strong root-cause hypothesis: websocket disconnects currently trigger session refresh and device-session token rotation on any disconnect, which can desynchronize persisted credentials from backend state. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
+Two lifecycle issues still need validation before safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence. The original audit found that websocket disconnects could rotate device-session tokens; that trigger has now been removed, but physical-device reproduction is still required. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
 
 The first implementation phase must therefore be architecture reconciliation plus authentication and lifecycle hardening. Messaging and E2EE should not begin until auth persistence, logout semantics, push and device linkage, and Android lifecycle reliability are stable and documented.
 
@@ -137,13 +137,15 @@ flowchart TD
 - Logout revokes only the provided device session.
 - Mobile stores `access_token`, `device_session_token`, and user summary in SecureStore.
 - Mobile route guards wait for auth-store hydration before redirecting.
-- Mobile protected API calls silently refresh only after a `401`.
-- Websocket reconnect logic also attempts silent refresh.
+- Mobile protected API calls silently refresh after a `401`.
+- Startup now validates the hydrated session through the current-user endpoint; expired access tokens use the same `401` refresh path.
+- Generic websocket disconnects no longer rotate device-session tokens. Foreground reconnect still reuses the most recently persisted access token.
+- A transient refresh/network failure no longer clears the persisted device session; invalid/revoked sessions still clear it on `401`.
 
 ### Meaning for target behavior
 
 - Durable login is architecturally intended.
-- Startup validation is incomplete because there is no dedicated auth bootstrap flow.
+- Startup validation now runs through a dedicated bootstrap flow; physical restart and revoked-session states remain unvalidated.
 - Expired access tokens can recover, but only when a refresh-triggering path runs.
 - Revoked device sessions clear local state correctly once refresh is attempted.
 
@@ -158,7 +160,7 @@ flowchart TD
 - SecureStore hydration runs in the root layout.
 - Private route access depends on whether the hydrated store still contains a session.
 - Protected API requests attempt refresh on `401`.
-- Websocket disconnects also trigger refresh if a session exists.
+- Generic websocket disconnects no longer refresh or clear auth; foreground reconnect uses the current persisted access token.
 
 ### Expected behavior
 
@@ -174,7 +176,7 @@ App launch
 
 ### Root-cause hypothesis
 
-The strongest code-based hypothesis is that websocket disconnects trigger device-session refresh and token rotation during ordinary backgrounding, shutdown, or network churn. If rotation succeeds server-side but the newly rotated device-session token is not durably persisted before process suspension, the stored token becomes stale and the next refresh attempt fails, clearing auth state.
+The original code-based hypothesis was that websocket disconnects could trigger refresh and token rotation during ordinary backgrounding, shutdown, or network churn. That refresh trigger has been removed. The reported symptom is still unverified, so the hypothesis must not be treated as a proven root cause.
 
 ### Evidence required
 
@@ -188,6 +190,14 @@ The strongest code-based hypothesis is that websocket disconnects trigger device
 - Stop rotating device-session tokens on generic websocket disconnects.
 - Refresh only on startup bootstrap and explicit `401` recovery paths.
 - Persist refreshed credentials before reconnecting realtime.
+
+### Implementation status
+
+- Startup bootstrap now validates the current user before mounting the private app tree and exposes a retry state for transient failures.
+- API refresh is single-flight, persists rotated credentials before the retried request, and clears local auth only when the refresh endpoint reports an unauthorized session.
+- Generic websocket disconnects update connection state without triggering refresh or logout.
+- Settings sign-out now validates the session, deactivates the current push registration when its device row can be identified, then revokes the device session.
+- Physical-device reproduction, regression coverage, and the device-session-to-installation linkage decision remain open.
 
 ### Regression tests
 
@@ -509,6 +519,7 @@ Recommended order:
 - Rebuild incoming, outgoing, audio, and video call screens around a WhatsApp-inspired full-screen layout.
 - Implement all call-screen presentation work in NativeWind.
 - Preserve existing call lifecycle, join-media, CallKeep, Notifee, and realtime route behavior.
+- Initial implementation has headerless NativeWind call surfaces, shared presentation primitives, and shared active-call orchestration; physical lifecycle and media verification remain to be completed.
 
 ### Gate 5 work
 

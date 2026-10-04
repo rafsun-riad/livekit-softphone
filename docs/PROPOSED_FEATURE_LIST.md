@@ -1,6 +1,6 @@
 # Proposed Feature List
 
-Status: Reconciled for planning review
+Status: Active implementation; aligned to the reconciled plan
 
 Purpose:
 
@@ -36,7 +36,7 @@ Reference documents:
 - No phone-contact sync
 - No end-to-end block and unblock policy
 - No approved three-tab shell yet
-- No dedicated auth bootstrap UX
+- Startup auth bootstrap is implemented; physical restart and revoked-session validation remain
 - No completed Android lifecycle reliability matrix
 
 ## Core Product Direction
@@ -73,6 +73,17 @@ Reference documents:
 - Reuse existing outgoing, incoming, audio, and video call flows
 - Save or block action for unknown callers
 
+### Call screen experience
+
+- Headerless, immersive full-screen call routes
+- NativeWind presentation scoped to incoming, outgoing, active audio, and active video calls
+- Caller/callee identity shown with initials until avatar data is available
+- Concise call status and duration instead of diagnostic session details
+- Bottom-anchored circular answer, decline, mute, speaker, camera, and end-call controls
+- Active video stage with full-screen remote video and a pinned local preview
+- Preserve existing LiveKit media, API lifecycle, websocket routing, CallKeep, and Notifee behavior
+- Keep camera flip and audio-route picker out of the first pass until supported and wired reliably
+
 ### Contacts
 
 - Contacts tab as the third visible bottom tab
@@ -104,7 +115,7 @@ Reference documents:
 
 ## Newly Identified Lifecycle and Reliability Requirements
 
-- Persistent login and startup refresh hardening
+- Persistent login and startup refresh hardening (in progress)
 - Screen-timeout bug investigation and fix
 - Terminated-state message-notification design
 - Terminated-state call-notification reliability validation

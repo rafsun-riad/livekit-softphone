@@ -112,14 +112,26 @@ export async function apiRequest<T>(
   return responseBody as T;
 }
 
-async function refreshAuthSession(): Promise<AuthSession | null> {
-  const { clearSession, session, setSession } = useAuthStore.getState();
+let refreshPromise: Promise<AuthSession | null> | null = null;
 
-  if (!session?.device_session_token) {
-    return null;
+function refreshAuthSession(): Promise<AuthSession | null> {
+  if (refreshPromise) {
+    return refreshPromise;
   }
 
+  refreshPromise = performAuthSessionRefresh();
+  return refreshPromise;
+}
+
+async function performAuthSessionRefresh(): Promise<AuthSession | null> {
+  const { clearSession, session, setSession } = useAuthStore.getState();
+
   try {
+    if (!session?.device_session_token) {
+      await clearSession();
+      return null;
+    }
+
     const refreshedSession = await apiRequest<AuthSession>(
       "/api/auth/refresh/",
       {
@@ -131,9 +143,15 @@ async function refreshAuthSession(): Promise<AuthSession | null> {
     );
     await setSession(refreshedSession);
     return refreshedSession;
-  } catch {
-    await clearSession();
-    return null;
+  } catch (error) {
+    if (error instanceof APIError && error.status === 401) {
+      await clearSession();
+      return null;
+    }
+
+    throw error;
+  } finally {
+    refreshPromise = null;
   }
 }
 
@@ -162,15 +180,28 @@ export async function authenticatedRequest<T>(
       throw error;
     }
 
-    const refreshedSession = await refreshAuthSession();
+    const latestSession = useAuthStore.getState().session;
+    const refreshedSession =
+      latestSession &&
+      latestSession.access_token !== session.access_token
+        ? latestSession
+        : await refreshAuthSession();
     if (!refreshedSession) {
       throw error;
     }
 
-    return apiRequest<T>(path, {
-      ...options,
-      accessToken: refreshedSession.access_token,
-    });
+    try {
+      return await apiRequest<T>(path, {
+        ...options,
+        accessToken: refreshedSession.access_token,
+      });
+    } catch (retryError) {
+      if (retryError instanceof APIError && retryError.status === 401) {
+        await useAuthStore.getState().clearSession();
+      }
+
+      throw retryError;
+    }
   }
 }
 

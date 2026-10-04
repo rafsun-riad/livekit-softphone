@@ -5,14 +5,12 @@ import { PropsWithChildren, useEffect, useEffectEvent } from "react";
 import { AppState } from "react-native";
 import RNCallKeep from "react-native-callkeep";
 
-import type { AuthSession } from "@/src/features/auth/types";
 import { buildCallRoute } from "@/src/features/calls/routes";
 import type {
   CallRecord,
   PresencePayload,
   SocketEventType,
 } from "@/src/features/calls/types";
-import { apiRequest } from "@/src/lib/api/client";
 import {
   ensureNativeCallingReadyAsync,
   handleIncomingCallNotificationEvent,
@@ -27,32 +25,8 @@ import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
 
-async function refreshSession(currentSession: AuthSession | null) {
-  if (!currentSession?.device_session_token) {
-    return null;
-  }
-
-  try {
-    const refreshedSession = await apiRequest<AuthSession>(
-      "/api/auth/refresh/",
-      {
-        method: "POST",
-        body: {
-          device_session_token: currentSession.device_session_token,
-        },
-      },
-    );
-    await useAuthStore.getState().setSession(refreshedSession);
-    return refreshedSession;
-  } catch {
-    await useAuthStore.getState().clearSession();
-    return null;
-  }
-}
-
 export function RealtimeProvider({ children }: PropsWithChildren) {
   const session = useAuthStore((state: AuthState) => state.session);
-  const clearSession = useAuthStore((state: AuthState) => state.clearSession);
   const applyPresence = useCallStore((state) => state.applyPresence);
   const resetRealtimeState = useCallStore((state) => state.resetRealtimeState);
   const setIncomingCall = useCallStore((state) => state.setIncomingCall);
@@ -86,22 +60,8 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
   );
 
   const handleStatusChange = useEffectEvent(
-    async (status: "disconnected" | "connecting" | "connected" | "error") => {
+    (status: "disconnected" | "connecting" | "connected" | "error") => {
       setSocketStatus(status);
-
-      if (status !== "disconnected" || !useAuthStore.getState().session) {
-        return;
-      }
-
-      const refreshedSession = await refreshSession(
-        useAuthStore.getState().session,
-      );
-      if (refreshedSession?.access_token) {
-        socketClient.connect(refreshedSession.access_token);
-        return;
-      }
-
-      await clearSession();
     },
   );
 
@@ -110,7 +70,7 @@ export function RealtimeProvider({ children }: PropsWithChildren) {
       void handleSocketEvent(event);
     });
     const unsubscribeStatus = socketClient.subscribeStatus((status) => {
-      void handleStatusChange(status);
+      handleStatusChange(status);
     });
 
     return () => {
