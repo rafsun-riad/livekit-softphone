@@ -7,6 +7,13 @@ import type { CallRecord, CreateCallPayload, JoinMediaResponse } from "./types";
 
 type RequestOptions = Omit<AuthenticatedRequestOptions, "method" | "body">;
 
+export function listCalls(requestOptions: RequestOptions = {}) {
+  return authenticatedRequest<CallRecord[]>("/api/calls/", {
+    ...requestOptions,
+    method: "GET",
+  });
+}
+
 export function createCall(payload: CreateCallPayload) {
   return authenticatedRequest<CallRecord>("/api/calls/", {
     method: "POST",

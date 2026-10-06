@@ -166,6 +166,12 @@ def _ensure_not_in_conflicting_call(*, user: User) -> None:
 
 class CallService:
     @staticmethod
+    def list_calls(*, user: User):
+        return Call.objects.select_related("initiator", "recipient").filter(
+            Q(initiator=user) | Q(recipient=user)
+        )
+
+    @staticmethod
     @transaction.atomic
     def create_call(*, initiator: User, recipient_user_id, call_type: str) -> Call:
         recipient = User.objects.filter(id=recipient_user_id, is_active=True).first()

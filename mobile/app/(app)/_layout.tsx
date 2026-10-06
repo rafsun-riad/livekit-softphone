@@ -1,11 +1,5 @@
 import { Redirect, Tabs } from "expo-router";
-import {
-  House,
-  Search,
-  Settings,
-  UserRound,
-  UsersRound,
-} from "lucide-react-native";
+import { MessageSquare, PhoneCall, UsersRound } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
 import type { AuthState } from "@/src/stores/auth-store";
@@ -61,10 +55,22 @@ export default function AppLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Messages",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-              <House color={color} size={18} strokeWidth={2.4} />
+              <MessageSquare color={color} size={18} strokeWidth={2.4} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calls"
+        options={{
+          title: "Calls",
+          headerShown: false,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
+              <PhoneCall color={color} size={18} strokeWidth={2.4} />
             </View>
           ),
         }}
@@ -83,23 +89,15 @@ export default function AppLayout() {
       <Tabs.Screen
         name="search"
         options={{
+          href: null,
           title: "Search",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-              <Search color={color} size={18} strokeWidth={2.4} />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          href: null,
           title: "Profile",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-              <UserRound color={color} size={18} strokeWidth={2.4} />
-            </View>
-          ),
         }}
       />
       <Tabs.Screen
@@ -107,18 +105,6 @@ export default function AppLayout() {
         options={{
           href: null,
           title: "Settings",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-              <Settings color={color} size={18} strokeWidth={2.4} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="calls"
-        options={{
-          href: null,
-          headerShown: false,
         }}
       />
     </Tabs>

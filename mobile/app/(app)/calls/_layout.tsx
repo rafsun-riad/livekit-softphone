@@ -10,6 +10,7 @@ export default function CallsLayout() {
         },
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Screen name="outgoing" />
       <Stack.Screen name="incoming" />
       <Stack.Screen name="audio" />

@@ -26,6 +26,11 @@ def error_response(
 class CallCreateView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
+    def get(self, request):
+        calls = CallService.list_calls(user=request.user)
+        serializer = CallSerializer(calls, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def post(self, request):
         serializer = CallCreateSerializer(data=request.data)
         if not serializer.is_valid():

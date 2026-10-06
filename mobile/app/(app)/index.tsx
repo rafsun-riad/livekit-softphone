@@ -57,9 +57,9 @@ export default function HomeScreen() {
             />
           </View>
           <View style={styles.heroCopy}>
-            <Text style={styles.label}>Signed-In Shell</Text>
+            <Text style={styles.label}>Messages</Text>
             <Text style={styles.title}>
-              Ready for contacts, search, and calls
+              Communication shell, message list next
             </Text>
           </View>
         </View>
@@ -68,16 +68,18 @@ export default function HomeScreen() {
           {meQuery.data?.display_name ||
             session?.user.display_name ||
             session?.user.phone_number_normalized}
-          . The Android app shell now uses a bottom navigation bar so the main
-          screens stay reachable like a typical mobile app.
+          . The visible shell now reserves the primary tab for messages while
+          auth, calling, contacts, profile, and settings remain usable during
+          the messaging build-out.
         </Text>
       </View>
 
       <View style={styles.callout}>
         <ShieldCheck color={appColors.cyanSoft} size={18} strokeWidth={2.2} />
         <Text style={styles.calloutText}>
-          Device session storage, silent refresh, tab navigation, and editable
-          profile fetch are active in the authenticated app shell.
+          Startup restore, silent refresh, calling, contacts, and secondary
+          account routes are active. Conversation history is not implemented
+          yet.
         </Text>
       </View>
 
@@ -131,9 +133,9 @@ export default function HomeScreen() {
           <Pressable style={styles.navCard}>
             <Search color={appColors.primarySoft} size={20} strokeWidth={2.2} />
             <View style={styles.navCopy}>
-              <Text style={styles.navTitle}>Search</Text>
+              <Text style={styles.navTitle}>Add contact</Text>
               <Text style={styles.navBody}>
-                Find registered users and add contacts.
+                Search registered users and grow your callable contacts.
               </Text>
             </View>
             <ChevronRight

@@ -129,6 +129,52 @@ class CallAPITests(APITestCase):
 
     @patch("apps.calls.services.send_incoming_call_push")
     @patch("apps.calls.services.broadcast_user_event")
+    def test_list_calls_returns_participant_history_in_newest_first_order(
+        self,
+        _broadcast_mock,
+        _push_mock,
+    ):
+        self.authenticate(self.caller)
+        first_call = self.client.post(
+            reverse("calls-create"),
+            {
+                "recipient_user_id": str(self.callee.id),
+                "call_type": "audio",
+            },
+            format="json",
+        )
+        self.assertEqual(first_call.status_code, status.HTTP_201_CREATED)
+        self.client.post(
+            reverse("calls-cancel", args=[first_call.data["id"]]),
+            format="json",
+        )
+
+        second_call = self.client.post(
+            reverse("calls-create"),
+            {
+                "recipient_user_id": str(self.callee.id),
+                "call_type": "video",
+            },
+            format="json",
+        )
+        self.assertEqual(second_call.status_code, status.HTTP_201_CREATED)
+
+        response = self.client.get(reverse("calls-create"), format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["id"], second_call.data["id"])
+        self.assertEqual(response.data[1]["id"], first_call.data["id"])
+        self.assertEqual(response.data[0]["call_type"], "video")
+        self.assertEqual(response.data[1]["call_type"], "audio")
+
+        self.authenticate(self.outsider)
+        outsider_response = self.client.get(reverse("calls-create"), format="json")
+        self.assertEqual(outsider_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(outsider_response.data, [])
+
+    @patch("apps.calls.services.send_incoming_call_push")
+    @patch("apps.calls.services.broadcast_user_event")
     def test_create_accept_join_and_end_call_flow(
         self,
         broadcast_mock,
