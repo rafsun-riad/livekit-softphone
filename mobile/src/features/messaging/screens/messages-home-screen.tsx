@@ -1,22 +1,12 @@
 import { useDeferredValue, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link, router } from "expo-router";
-import {
-  BadgePlus,
-  ChevronRight,
-  PhoneCall,
-  Search,
-  ShieldCheck,
-  Video,
-} from "lucide-react-native";
+import { Link } from "expo-router";
+import { ChevronRight, Search, ShieldCheck } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
-import {
-  buildActiveCallRoute,
-  buildPendingOutgoingCallRoute,
-} from "@/src/features/calls/routes";
+import { buildActiveCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
 import type { Contact } from "@/src/features/contacts/types";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
@@ -67,35 +57,24 @@ export default function MessagesHomeScreen() {
     queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
   });
+
   const filteredContacts = (contactsQuery.data ?? []).filter((contact) =>
     matchesContact(contact, deferredQuery),
   );
 
   return (
     <AppScrollScreen contentContainerStyle={styles.content}>
-      <View style={styles.searchRow}>
-        <View style={styles.searchField}>
-          <Search color={appColors.textSecondary} size={18} strokeWidth={2.2} />
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={setQuery}
-            placeholder="Search saved contacts"
-            placeholderTextColor={appColors.textSecondary}
-            style={styles.searchInput}
-            value={query}
-          />
-        </View>
-
-        <Link href="./search" asChild>
-          <Pressable style={styles.newConversationButton}>
-            <BadgePlus
-              color={appColors.primarySoft}
-              size={18}
-              strokeWidth={2.2}
-            />
-          </Pressable>
-        </Link>
+      <View style={styles.searchField}>
+        <Search color={appColors.textSecondary} size={18} strokeWidth={2.2} />
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={setQuery}
+          placeholder="Search conversations"
+          placeholderTextColor={appColors.textSecondary}
+          style={styles.searchInput}
+          value={query}
+        />
       </View>
 
       {activeCall ? (
@@ -125,7 +104,7 @@ export default function MessagesHomeScreen() {
       ) : null}
 
       {contactsQuery.isLoading ? (
-        <Text style={styles.helperText}>Loading saved contacts...</Text>
+        <Text style={styles.helperText}>Loading conversations...</Text>
       ) : null}
 
       {!contactsQuery.isLoading && !contactsQuery.data?.length ? (
@@ -139,12 +118,11 @@ export default function MessagesHomeScreen() {
           </View>
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptyBody}>
-            Add a contact first. When messaging backend work lands, your thread
-            list will appear here.
+            Add a contact first. Your first conversation list will appear here.
           </Text>
           <Link href="./search" asChild>
             <Pressable style={styles.primaryAction}>
-              <Text style={styles.primaryActionLabel}>Choose a contact</Text>
+              <Text style={styles.primaryActionLabel}>Find a contact</Text>
             </Pressable>
           </Link>
         </View>
@@ -152,15 +130,8 @@ export default function MessagesHomeScreen() {
 
       {!contactsQuery.isLoading && Boolean(contactsQuery.data?.length) ? (
         <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionHeaderCopy}>
-            <Text style={styles.sectionKicker}>Ready contacts</Text>
-            <Text style={styles.sectionTitle}>People you can reach next</Text>
-          </View>
-          <Link href="./contacts" asChild>
-            <Pressable style={styles.sectionLink}>
-              <Text style={styles.sectionLinkLabel}>All contacts</Text>
-            </Pressable>
-          </Link>
+          <Text style={styles.sectionTitle}>Conversations</Text>
+          <Text style={styles.sectionMeta}>{filteredContacts.length}</Text>
         </View>
       ) : null}
 
@@ -168,21 +139,28 @@ export default function MessagesHomeScreen() {
       Boolean(contactsQuery.data?.length) &&
       !filteredContacts.length ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No matching contacts</Text>
+          <Text style={styles.emptyTitle}>No matching conversations</Text>
           <Text style={styles.emptyBody}>
-            Try a different name fragment or clear the filter.
+            Try a different name or number from your saved contacts.
           </Text>
         </View>
       ) : null}
 
-      {filteredContacts.map((contact) => {
+      {filteredContacts.map((contact, index) => {
         const counterpart = contact.contact_user;
         const isOnline = Boolean(onlineUsers[counterpart.id]);
 
         return (
-          <View key={contact.id} style={styles.contactCard}>
-            <View style={styles.contactAvatar}>
-              <Text style={styles.contactAvatarLabel}>
+          <View
+            key={contact.id}
+            style={[
+              styles.conversationRow,
+              index === filteredContacts.length - 1 &&
+                styles.lastConversationRow,
+            ]}
+          >
+            <View style={styles.avatarWrap}>
+              <Text style={styles.avatarLabel}>
                 {getInitials(
                   counterpart.display_name,
                   counterpart.phone_number_normalized,
@@ -190,66 +168,26 @@ export default function MessagesHomeScreen() {
               </Text>
             </View>
 
-            <View style={styles.contactCopy}>
-              <View style={styles.nameRow}>
-                <Text style={styles.contactName}>
-                  {counterpart.display_name || "Unnamed user"}
+            <View style={styles.rowCopy}>
+              <View style={styles.rowTop}>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {counterpart.display_name ||
+                    counterpart.phone_number_normalized}
                 </Text>
-                <View
+                <Text
                   style={[
-                    styles.presenceDot,
-                    isOnline ? styles.presenceOnline : styles.presenceOffline,
+                    styles.rowTrailing,
+                    isOnline && styles.rowTrailingOnline,
                   ]}
-                />
+                >
+                  {isOnline ? "online" : "saved"}
+                </Text>
               </View>
-              <Text style={styles.contactMeta}>
-                {counterpart.phone_number_normalized}
-              </Text>
-              <Text style={styles.contactHint}>
-                Thread history will appear here once messaging delivery is
-                wired.
+              <Text style={styles.rowSubtitle} numberOfLines={1}>
+                {counterpart.phone_number_normalized} · conversation history
+                will appear here
               </Text>
             </View>
-
-            <Pressable
-              onPress={() => {
-                router.push(
-                  buildPendingOutgoingCallRoute({
-                    recipientUserId: counterpart.id,
-                    callType: "audio",
-                    recipientName: counterpart.display_name,
-                    recipientPhone: counterpart.phone_number_normalized,
-                  }),
-                );
-              }}
-              style={styles.callButton}
-            >
-              <PhoneCall
-                color={appColors.primarySoft}
-                size={18}
-                strokeWidth={2.2}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                router.push(
-                  buildPendingOutgoingCallRoute({
-                    recipientUserId: counterpart.id,
-                    callType: "video",
-                    recipientName: counterpart.display_name,
-                    recipientPhone: counterpart.phone_number_normalized,
-                  }),
-                );
-              }}
-              style={styles.callButton}
-            >
-              <Video
-                color={appColors.primarySoft}
-                size={18}
-                strokeWidth={2.2}
-              />
-            </Pressable>
           </View>
         );
       })}
@@ -260,24 +198,16 @@ export default function MessagesHomeScreen() {
 const styles = StyleSheet.create({
   content: {
     backgroundColor: appColors.background,
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
     paddingTop: 12,
-  },
-  searchRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 18,
   },
   searchField: {
     alignItems: "center",
-    backgroundColor: appColors.surface,
-    borderColor: appColors.border,
+    backgroundColor: appColors.surfaceStrong,
     borderRadius: 18,
-    borderWidth: 1,
-    flex: 1,
     flexDirection: "row",
     gap: 10,
+    marginBottom: 16,
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
@@ -288,23 +218,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 46,
   },
-  newConversationButton: {
-    alignItems: "center",
-    backgroundColor: appColors.primary,
-    borderRadius: 18,
-    height: 58,
-    justifyContent: "center",
-    width: 58,
-  },
   activeCallLink: {
     alignItems: "center",
     backgroundColor: appColors.surfaceStrong,
-    borderColor: appColors.border,
     borderRadius: 18,
-    borderWidth: 1,
     flexDirection: "row",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -316,7 +236,7 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 16,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   activeCallBody: {
     color: appColors.textSecondary,
@@ -341,9 +261,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     alignItems: "center",
     backgroundColor: appColors.surface,
-    borderColor: appColors.border,
     borderRadius: 22,
-    borderWidth: 1,
     marginBottom: 18,
     paddingHorizontal: 18,
     paddingVertical: 22,
@@ -389,113 +307,77 @@ const styles = StyleSheet.create({
   sectionHeaderRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 12,
     justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  sectionHeaderCopy: {
-    flex: 1,
-  },
-  sectionKicker: {
-    color: appColors.amber,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    marginBottom: 6,
-    textTransform: "uppercase",
+    marginBottom: 8,
   },
   sectionTitle: {
     color: appColors.textPrimary,
     fontFamily: appTypography.fontFamily,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
   },
-  sectionLink: {
-    backgroundColor: appColors.surfaceStrong,
-    borderColor: appColors.border,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  sectionLinkLabel: {
-    color: appColors.textPrimary,
+  sectionMeta: {
+    color: appColors.textSecondary,
     fontFamily: appTypography.fontFamily,
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "600",
   },
-  contactCard: {
+  conversationRow: {
     alignItems: "center",
-    backgroundColor: appColors.surface,
-    borderColor: appColors.border,
-    borderRadius: 22,
-    borderWidth: 1,
+    borderBottomColor: appColors.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
     gap: 14,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
-  contactAvatar: {
+  lastConversationRow: {
+    borderBottomWidth: 0,
+  },
+  avatarWrap: {
     alignItems: "center",
     backgroundColor: appColors.surfaceStrong,
-    borderRadius: 20,
-    height: 40,
+    borderRadius: 24,
+    height: 48,
     justifyContent: "center",
-    width: 40,
+    width: 48,
   },
-  contactAvatarLabel: {
+  avatarLabel: {
     color: appColors.textPrimary,
     fontFamily: appTypography.fontFamily,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
-  contactCopy: {
+  rowCopy: {
     flex: 1,
   },
-  nameRow: {
+  rowTop: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 8,
+    justifyContent: "space-between",
     marginBottom: 4,
   },
-  contactName: {
+  rowTitle: {
     color: appColors.textPrimary,
+    flex: 1,
     fontFamily: appTypography.fontFamily,
     fontSize: 16,
     fontWeight: "700",
+    marginRight: 10,
   },
-  presenceDot: {
-    borderRadius: 4,
-    height: 8,
-    width: 8,
+  rowTrailing: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "capitalize",
   },
-  presenceOnline: {
-    backgroundColor: "#4ade80",
+  rowTrailingOnline: {
+    color: "#86efac",
   },
-  presenceOffline: {
-    backgroundColor: appColors.textMuted,
-  },
-  contactMeta: {
+  rowSubtitle: {
     color: appColors.textSecondary,
     fontFamily: appTypography.fontFamily,
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 4,
-  },
-  contactHint: {
-    color: appColors.textMuted,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  callButton: {
-    alignItems: "center",
-    backgroundColor: appColors.primary,
-    borderRadius: 16,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
   },
 });

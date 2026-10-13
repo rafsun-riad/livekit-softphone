@@ -23,6 +23,17 @@ import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
+function getInitials(name: string | null | undefined, phone: string) {
+  const source = name?.trim() || phone;
+  const parts = source.split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
+
 function getCounterpart(call: CallRecord, viewerUserId: string) {
   return call.initiator.id === viewerUserId ? call.recipient : call.initiator;
 }
@@ -101,26 +112,6 @@ export default function CallsHistoryScreen() {
 
   return (
     <AppScrollScreen contentContainerStyle={styles.content}>
-      <View style={styles.heroCard}>
-        <View style={styles.heroRow}>
-          <View style={styles.heroIcon}>
-            <PhoneCall
-              color={appColors.actionDarkText}
-              size={22}
-              strokeWidth={2.2}
-            />
-          </View>
-          <View style={styles.heroCopy}>
-            <Text style={styles.kicker}>Calls</Text>
-            <Text style={styles.title}>Recent audio and video activity</Text>
-          </View>
-        </View>
-        <Text style={styles.body}>
-          Review recent call history, filter by name or number, and start the
-          next call from an existing contact.
-        </Text>
-      </View>
-
       {activeCall ? (
         <Link href={buildActiveCallRoute(activeCall)} asChild>
           <Pressable style={styles.activeCallCard}>
@@ -158,12 +149,6 @@ export default function CallsHistoryScreen() {
         />
       </View>
 
-      <Link href="../contacts" asChild>
-        <Pressable style={styles.primaryAction}>
-          <Text style={styles.primaryActionLabel}>Start a new call</Text>
-        </Pressable>
-      </Link>
-
       {callsQuery.isError ? (
         <Text style={styles.errorText}>
           {getAPIErrorMessage(callsQuery.error)}
@@ -180,6 +165,18 @@ export default function CallsHistoryScreen() {
           <Text style={styles.emptyBody}>
             Start a call from Contacts to build the first history entries.
           </Text>
+          <Link href="../contacts" asChild>
+            <Pressable style={styles.primaryAction}>
+              <Text style={styles.primaryActionLabel}>Open contacts</Text>
+            </Pressable>
+          </Link>
+        </View>
+      ) : null}
+
+      {!callsQuery.isLoading && Boolean(callsQuery.data?.length) ? (
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Recent calls</Text>
+          <Text style={styles.sectionMeta}>{filteredCalls.length}</Text>
         </View>
       ) : null}
 
@@ -200,59 +197,75 @@ export default function CallsHistoryScreen() {
           : call.recipient;
 
         return (
-          <View key={call.id} style={styles.callCard}>
-            <View style={styles.callCopy}>
-              <Text style={styles.callName}>
-                {counterpart.display_name ||
-                  counterpart.phone_number_normalized}
+          <View key={call.id} style={styles.callRow}>
+            <View style={styles.avatarWrap}>
+              <Text style={styles.avatarLabel}>
+                {getInitials(
+                  counterpart.display_name,
+                  counterpart.phone_number_normalized,
+                )}
               </Text>
+            </View>
+
+            <View style={styles.callCopy}>
+              <View style={styles.rowTop}>
+                <Text style={styles.callName} numberOfLines={1}>
+                  {counterpart.display_name ||
+                    counterpart.phone_number_normalized}
+                </Text>
+                <Text style={styles.rowTrailing}>
+                  {formatTimestamp(getDisplayTimestamp(call))}
+                </Text>
+              </View>
               <Text style={styles.callMeta}>
                 {getDirectionLabel(call, session?.user.id ?? counterpart.id)}{" "}
                 {call.call_type} call
               </Text>
               <Text style={styles.callSubmeta}>
-                {formatStateLabel(call.state)} •{" "}
-                {formatTimestamp(getDisplayTimestamp(call))}
+                {formatStateLabel(call.state)}
               </Text>
             </View>
-            <Pressable
-              onPress={() => {
-                router.push(
-                  buildPendingOutgoingCallRoute({
-                    recipientUserId: counterpart.id,
-                    callType: "audio",
-                    recipientName: counterpart.display_name,
-                    recipientPhone: counterpart.phone_number_normalized,
-                  }),
-                );
-              }}
-              style={styles.iconButton}
-            >
-              <PhoneCall
-                color={appColors.primarySoft}
-                size={18}
-                strokeWidth={2.2}
-              />
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                router.push(
-                  buildPendingOutgoingCallRoute({
-                    recipientUserId: counterpart.id,
-                    callType: "video",
-                    recipientName: counterpart.display_name,
-                    recipientPhone: counterpart.phone_number_normalized,
-                  }),
-                );
-              }}
-              style={styles.iconButton}
-            >
-              <Video
-                color={appColors.primarySoft}
-                size={18}
-                strokeWidth={2.2}
-              />
-            </Pressable>
+
+            <View style={styles.actionsColumn}>
+              <Pressable
+                onPress={() => {
+                  router.push(
+                    buildPendingOutgoingCallRoute({
+                      recipientUserId: counterpart.id,
+                      callType: "audio",
+                      recipientName: counterpart.display_name,
+                      recipientPhone: counterpart.phone_number_normalized,
+                    }),
+                  );
+                }}
+                style={styles.iconButton}
+              >
+                <PhoneCall
+                  color={appColors.primarySoft}
+                  size={16}
+                  strokeWidth={2.2}
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  router.push(
+                    buildPendingOutgoingCallRoute({
+                      recipientUserId: counterpart.id,
+                      callType: "video",
+                      recipientName: counterpart.display_name,
+                      recipientPhone: counterpart.phone_number_normalized,
+                    }),
+                  );
+                }}
+                style={styles.iconButton}
+              >
+                <Video
+                  color={appColors.primarySoft}
+                  size={16}
+                  strokeWidth={2.2}
+                />
+              </Pressable>
+            </View>
           </View>
         );
       })}
@@ -263,68 +276,18 @@ export default function CallsHistoryScreen() {
 const styles = StyleSheet.create({
   content: {
     backgroundColor: appColors.background,
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-  },
-  heroCard: {
-    backgroundColor: appColors.surface,
-    borderColor: appColors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    marginBottom: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  heroRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 14,
-  },
-  heroIcon: {
-    alignItems: "center",
-    backgroundColor: appColors.actionDark,
-    borderRadius: 18,
-    height: 52,
-    justifyContent: "center",
-    width: 52,
-  },
-  heroCopy: {
-    flex: 1,
-  },
-  kicker: {
-    color: appColors.cyan,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-    marginBottom: 8,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: appColors.textPrimary,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 28,
-    fontWeight: "700",
-    lineHeight: 34,
-  },
-  body: {
-    color: appColors.textSecondary,
-    fontFamily: appTypography.fontFamily,
-    fontSize: 15,
-    lineHeight: 22,
+    paddingHorizontal: 18,
+    paddingTop: 12,
   },
   activeCallCard: {
     alignItems: "center",
     backgroundColor: appColors.surfaceStrong,
-    borderColor: appColors.border,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 18,
     flexDirection: "row",
     gap: 12,
     marginBottom: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   activeCallCopy: {
     flex: 1,
@@ -344,13 +307,11 @@ const styles = StyleSheet.create({
   },
   searchField: {
     alignItems: "center",
-    backgroundColor: appColors.surface,
-    borderColor: appColors.border,
+    backgroundColor: appColors.surfaceStrong,
     borderRadius: 18,
-    borderWidth: 1,
     flexDirection: "row",
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 16,
     paddingHorizontal: 16,
     paddingVertical: 6,
   },
@@ -365,7 +326,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: appColors.primary,
     borderRadius: 18,
-    marginBottom: 18,
+    marginTop: 4,
     paddingHorizontal: 18,
     paddingVertical: 14,
   },
@@ -391,9 +352,8 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: appColors.surface,
-    borderColor: appColors.border,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 22,
+    marginBottom: 18,
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
@@ -410,49 +370,92 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  callCard: {
+  sectionHeaderRow: {
     alignItems: "center",
-    backgroundColor: appColors.surface,
-    borderColor: appColors.border,
-    borderRadius: 20,
-    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  sectionMeta: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  callRow: {
+    alignItems: "center",
+    borderBottomColor: appColors.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
     gap: 14,
-    marginTop: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 14,
+  },
+  avatarWrap: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderRadius: 24,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  avatarLabel: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 15,
+    fontWeight: "700",
   },
   callCopy: {
     flex: 1,
   },
+  rowTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  rowTrailing: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 12,
+    marginLeft: 12,
+  },
   callName: {
     color: appColors.textPrimary,
+    flex: 1,
     fontFamily: appTypography.fontFamily,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
-    marginBottom: 6,
   },
   callMeta: {
     color: appColors.textSecondary,
     fontFamily: appTypography.fontFamily,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 4,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 2,
     textTransform: "capitalize",
   },
   callSubmeta: {
-    color: appColors.textMuted,
+    color: appColors.textSecondary,
     fontFamily: appTypography.fontFamily,
     fontSize: 13,
     lineHeight: 18,
     textTransform: "capitalize",
   },
+  actionsColumn: {
+    gap: 8,
+  },
   iconButton: {
     alignItems: "center",
     backgroundColor: appColors.primary,
-    borderRadius: 16,
-    height: 42,
+    borderRadius: 14,
+    height: 36,
     justifyContent: "center",
-    width: 42,
+    width: 36,
   },
 });
