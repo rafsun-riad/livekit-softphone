@@ -31,8 +31,8 @@ Reference documents:
 
 ## Confirmed Gaps
 
-- No backend messaging endpoints or realtime delivery contracts yet
-- No mobile messaging data layer or backend-backed thread delivery
+- No backend messaging realtime delivery contracts or completed authorization rules yet
+- No backend-backed conversation list or message send flow yet
 - No E2EE implementation
 - No encrypted media pipeline
 - No phone-contact sync
@@ -54,7 +54,7 @@ Reference documents:
 - WhatsApp-style conversation list as the primary signed-in entry
 - ✅ Top app bar with `Messages` title and avatar menu
 - ✅ Search bar for filtering conversations
-- New conversation floating action button
+- Direct-conversation creation flow
 - 1:1 text messaging
 - 1:1 image messaging
 - 1:1 video messaging

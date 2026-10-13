@@ -154,7 +154,7 @@ Status: In progress
 
 Remaining tasks:
 
-- Add REST and websocket contracts for messaging.
+- Add websocket contracts for messaging.
 - Add authorization rules for unknown users and blocked users.
 
 Implementation begun:
@@ -162,6 +162,7 @@ Implementation begun:
 - Added `backend/apps/messaging/` and wired it into Django settings.
 - Added foundation models for conversations, participant state, encrypted messages, attachments, receipts, identity keys, signed pre-keys, and one-time pre-keys.
 - Added admin registration, the initial migration, and a focused messaging model smoke test.
+- Added initial REST contracts for direct-conversation bootstrap, conversation list and detail, and message list/create over ciphertext payloads.
 
 Dependencies:
 
@@ -181,6 +182,7 @@ Implementation begun:
 - Added `mobile/src/features/messaging/` with a signed-in Messages home screen.
 - Messages now includes contact-backed search, list-driven conversation rows, and message-surface call shortcuts.
 - Added the first hidden message thread route and screen shell so saved contacts can open a conversation surface before backend delivery exists.
+- Message threads now bootstrap direct conversations and read encrypted message records through the backend REST foundation.
 - Added the first hidden contact-detail route and screen shell so saved contacts can open a person-level message/call surface before contact-policy work is complete.
 - Latest shell and list-layout updates for `Messages`, `Calls`, and `Contacts` were manually verified on a real Android device.
 

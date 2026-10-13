@@ -20,5 +20,6 @@ urlpatterns = [
     path("api/contacts/", include("apps.contacts.urls")),
     path("api/devices/", include("apps.devices.urls")),
     path("api/calls/", include("apps.calls.urls")),
+    path("api/messaging/", include("apps.messaging.urls")),
     path("admin/", admin.site.urls),
 ]

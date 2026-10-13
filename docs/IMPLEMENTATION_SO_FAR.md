@@ -38,7 +38,7 @@ Reference plan:
 
 ### Confirmed product gaps
 
-- No backend messaging endpoints or real mobile conversation data and delivery implementation
+- No backend messaging realtime delivery layer or complete mobile conversation data and delivery implementation
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
@@ -80,6 +80,7 @@ Reference plan:
 - Authenticated API client with refresh-on-401 behavior
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
 - Mobile messaging home under `mobile/src/features/messaging/` with contact-backed conversation search, a first thread shell route, and message-surface call shortcuts
+- Message thread shells now bootstrap direct conversations and read encrypted message records from the backend REST layer
 - Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
 - Contacts now includes a person-level detail screen with message, audio-call, video-call, and remove-contact actions
 - Push registration bootstrap and device inspection in settings
@@ -94,12 +95,12 @@ Reference plan:
 
 ## Features Not Yet Implemented
 
-- Backend messaging endpoints and realtime contracts
+- Backend messaging realtime contracts and full delivery behavior
 - Mobile messaging UI and data layer
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
-- Backend-backed messages conversation list, thread flows, and delivery state
+- Backend-backed messages conversation list, full thread UX, send flow, and delivery state
 - Contact-detail save, block, and unblock actions
 
 ## Confirmed Bugs And Reliability Risks
@@ -161,6 +162,7 @@ Reference plan:
 - Android Expo prebuild: passed.
 - Three-tab shell and list-layout updates for `Messages`, `Calls`, and `Contacts`: manually verified on a real Android device.
 - Messages thread-shell navigation and route wiring: statically validated through typecheck and export; hardware validation remains open.
+- Backend messaging model and API tests: passed.
 
 ## What This File Intentionally Does Not Claim
 

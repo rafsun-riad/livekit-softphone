@@ -14,6 +14,10 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
 import { buildContactDetailRoute } from "@/src/features/contacts/routes";
+import {
+  ensureDirectConversation,
+  getConversationMessages,
+} from "@/src/features/messaging/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
@@ -49,6 +53,23 @@ export default function MessageThreadScreen() {
   const contactsQuery = useQuery({
     queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
+  });
+
+  const conversationQuery = useQuery({
+    enabled: Boolean(contactUserId),
+    queryFn: () => ensureDirectConversation(contactUserId),
+    queryKey: ["messaging", "conversation", "direct", contactUserId],
+  });
+
+  const messagesQuery = useQuery({
+    enabled: Boolean(conversationQuery.data?.id),
+    queryFn: ({ signal }) =>
+      getConversationMessages(conversationQuery.data!.id, { signal }),
+    queryKey: [
+      "messaging",
+      "messages",
+      { conversationId: conversationQuery.data?.id ?? "" },
+    ],
   });
 
   const contact = useMemo(() => {
@@ -174,6 +195,22 @@ export default function MessageThreadScreen() {
           </Text>
         ) : null}
 
+        {conversationQuery.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(conversationQuery.error)}
+          </Text>
+        ) : null}
+
+        {messagesQuery.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(messagesQuery.error)}
+          </Text>
+        ) : null}
+
+        {conversationQuery.isLoading || messagesQuery.isLoading ? (
+          <Text style={styles.helperText}>Loading conversation...</Text>
+        ) : null}
+
         <View style={styles.placeholderCard}>
           <View style={styles.placeholderIconWrap}>
             <MessageSquare
@@ -182,12 +219,19 @@ export default function MessageThreadScreen() {
               strokeWidth={2.2}
             />
           </View>
-          <Text style={styles.placeholderTitle}>Thread ready</Text>
-          <Text style={styles.placeholderBody}>
-            This conversation surface is now in place. Message fetch, delivery,
-            receipts, and composer send behavior still depend on the backend
-            messaging foundation and notification routing work.
+          <Text style={styles.placeholderTitle}>
+            {messagesQuery.data?.length ? "Thread loaded" : "Thread ready"}
           </Text>
+          <Text style={styles.placeholderBody}>
+            {messagesQuery.data?.length
+              ? `This direct conversation is now backed by the messaging API. ${messagesQuery.data.length} encrypted message record${messagesQuery.data.length === 1 ? " is" : "s are"} available in the thread.`
+              : "This conversation surface now bootstraps a direct conversation and can read stored encrypted message records. Composer send behavior still depends on the next messaging step."}
+          </Text>
+          {conversationQuery.data ? (
+            <Text style={styles.placeholderMeta}>
+              Conversation ID: {conversationQuery.data.id}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -305,8 +349,24 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
+  placeholderMeta: {
+    color: appColors.textMuted,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+    textAlign: "center",
+  },
   errorText: {
     color: "#fca5a5",
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+    textAlign: "center",
+  },
+  helperText: {
+    color: appColors.textMuted,
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
     lineHeight: 20,
