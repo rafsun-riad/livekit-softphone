@@ -18,7 +18,7 @@ Relationship to existing plan:
 
 The repository already contains substantial backend and mobile calling foundations. Backend auth, device sessions, contacts, devices, call lifecycle APIs, Channels websocket signaling, Firebase Admin push delivery, and LiveKit token generation exist in code. Mobile already includes Expo Router navigation, SecureStore-backed auth persistence, authenticated API retry with refresh, websocket signaling, push registration, LiveKit audio and video call screens, CallKeep, Notifee, and background incoming-call handling.
 
-The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, phone-contact sync, and the approved three-tab product shell are not implemented. The current visible mobile shell is still `Home`, `Contacts`, `Search`, and `Profile`, not `Messages`, `Calls`, and `Contacts`.
+The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, and phone-contact sync are not implemented. The current visible mobile shell now exposes `Messages`, `Calls`, and `Contacts`, but the primary `Messages` tab is still a placeholder surface rather than a real conversation list.
 
 Two lifecycle issues still need validation before safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence. The original audit found that websocket disconnects could rotate device-session tokens; that trigger has now been removed, but physical-device reproduction is still required. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
 
@@ -53,12 +53,12 @@ The first implementation phase must therefore be architecture reconciliation plu
 - Phone-contact sync does not exist.
 - Unknown-user messaging and calling do not exist.
 - Block and unblock policy is not implemented end to end.
-- The approved three-tab shell does not exist yet.
+- The approved three-tab shell now exists, but the primary `Messages` experience is still shell-only.
 
 ## 3. Documentation vs Code Discrepancies
 
 - Earlier planning documents describe durable device sessions and silent refresh as already solved. Code mostly supports that claim, but there is no dedicated startup bootstrap flow that validates or refreshes auth before opening the private app shell.
-- Earlier planning implies the communication-product shell is largely aligned. The real mobile shell is not aligned with the approved `Messages`, `Calls`, `Contacts` experience.
+- Earlier planning implies the communication-product shell is largely aligned. The real mobile shell now matches the approved `Messages`, `Calls`, `Contacts` tabs, but messaging data and thread flows remain unimplemented.
 - Earlier tracking documents overstate project completeness for the new communication-app scope. Messaging, E2EE, contact sync, unknown-user policy, block enforcement, and lifecycle hardening remain unimplemented.
 - Earlier docs do not capture the current logout and device-registration gap, the likely duplicate incoming-call notification risk, or the need to distinguish Android background, swipe-away, process death, force-stop, and reboot states explicitly.
 

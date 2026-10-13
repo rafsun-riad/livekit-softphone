@@ -172,7 +172,6 @@ Remaining tasks:
 - Create `mobile/src/features/messaging/`.
 - Add messages list, thread view, composer, and notification routing.
 - Use TanStack Query for message and conversation server state.
-- Convert the visible shell to `Messages`, `Calls`, and `Contacts`.
 
 Dependencies:
 

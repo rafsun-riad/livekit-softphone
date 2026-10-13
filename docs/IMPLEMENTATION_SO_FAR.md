@@ -20,7 +20,7 @@ Reference plan:
 - The repository is no longer greenfield and no longer softphone-only.
 - Backend and mobile calling foundations are implemented in code.
 - The current codebase supports custom-user auth, device sessions, device registration, websocket signaling, Firebase push, LiveKit-based calling, CallKeep, Notifee, and SecureStore-backed mobile auth persistence.
-- The communication-product transition is not complete. Messaging, E2EE, phone-contact sync, end-to-end block policy, and the approved `Messages`, `Calls`, `Contacts` shell are still not implemented.
+- The communication-product transition is not complete. Messaging, E2EE, phone-contact sync, and end-to-end block policy are still not implemented behind the approved `Messages`, `Calls`, `Contacts` shell.
 - A 2026-09-29 repository audit also identified lifecycle and reliability work that must happen before messaging implementation proceeds safely.
 
 ## Reconciliation Update On 2026-09-29
@@ -42,7 +42,7 @@ Reference plan:
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
-- No approved `Messages`, `Calls`, `Contacts` visible shell yet
+- No real conversation list or thread implementation behind the approved `Messages`, `Calls`, `Contacts` shell
 - No complete unknown-user, save-contact, block, or unblock flow
 
 ### Confirmed lifecycle gaps
@@ -77,7 +77,7 @@ Reference plan:
 - Expo Router app structure with auth and signed-in route groups
 - SecureStore-backed auth persistence via Zustand
 - Authenticated API client with refresh-on-401 behavior
-- Profile and settings screens
+- Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
 - Push registration bootstrap and device inspection in settings
 
 ### Mobile calling foundations
@@ -95,9 +95,8 @@ Reference plan:
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
-- Calls history tab aligned to the final shell
+- Messages conversation list and thread flows
 - Contact details with save, block, and unblock actions
-- Approved three-tab navigation shell
 
 ## Confirmed Bugs And Reliability Risks
 
@@ -105,7 +104,7 @@ Reference plan:
 
 - Logout invalidates the current registration when the push token/device can be identified; registration-to-installation linkage remains incomplete.
 - Device registrations can outlive the auth session that created them.
-- Current shell does not match the approved product structure.
+- Messaging remains absent behind the approved shell structure.
 
 ### Suspected but not yet proven
 

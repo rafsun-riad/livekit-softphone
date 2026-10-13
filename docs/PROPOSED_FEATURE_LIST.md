@@ -37,7 +37,6 @@ Reference documents:
 - No encrypted media pipeline
 - No phone-contact sync
 - No end-to-end block and unblock policy
-- No approved three-tab shell yet
 - Startup auth bootstrap is implemented; physical restart and revoked-session validation remain
 - No completed Android lifecycle reliability matrix
 
@@ -53,7 +52,7 @@ Reference documents:
 ### Messages
 
 - WhatsApp-style conversation list as the primary signed-in entry
-- Top app bar with `Messages` title and avatar menu
+- ✅ Top app bar with `Messages` title and avatar menu
 - Search bar for filtering conversations
 - New conversation floating action button
 - 1:1 text messaging
@@ -68,8 +67,8 @@ Reference documents:
 
 ### Calls
 
-- Calls tab as the second visible bottom tab
-- Searchable call history list
+- ✅ Calls tab as the second visible bottom tab
+- ✅ Searchable call history list
 - New call floating action button
 - Initiate new call from contacts and future conversation threads
 - ✅ Reuse existing outgoing, incoming, audio, and video call flows
@@ -97,10 +96,10 @@ Reference documents:
 
 ### Navigation and profile access
 
-- Only three visible bottom tabs
-- Avatar tap opens compact menu
-- Menu contains `Profile` and `Settings`
-- Hidden routes remain available for active call and other secondary flows
+- ✅ Only three visible bottom tabs
+- ✅ Avatar tap opens compact menu
+- ✅ Menu contains `Profile` and `Settings`
+- ✅ Hidden routes remain available for active call and other secondary flows
 
 ### Auth and loading UX
 

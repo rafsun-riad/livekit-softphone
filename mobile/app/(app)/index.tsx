@@ -1,30 +1,44 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { useState } from "react";
+
+import { useQuery } from "@tanstack/react-query";
+import { Link, router } from "expo-router";
 import {
+  BadgePlus,
   ChevronRight,
-  PhoneCall,
   Search,
-  Settings,
   ShieldCheck,
-  UserRound,
   UsersRound,
 } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
-import { getCurrentUser, logout } from "@/src/features/auth/api";
+import { getCurrentUser } from "@/src/features/auth/api";
 import { buildActiveCallRoute } from "@/src/features/calls/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
-import type { AuthState } from "@/src/stores/auth-store";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
-export default function HomeScreen() {
-  const clearSession = useAuthStore((state: AuthState) => state.clearSession);
-  const session = useAuthStore((state: AuthState) => state.session);
+function getDisplayIdentity(name: string | null | undefined, phone: string) {
+  return name?.trim() || phone;
+}
+
+function getInitials(name: string | null | undefined, phone: string) {
+  const source = name?.trim() || phone;
+  const parts = source.split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
+
+export default function MessagesScreen() {
+  const session = useAuthStore((state) => state.session);
   const activeCall = useCallStore((state) => state.activeCall);
   const socketStatus = useCallStore((state) => state.socketStatus);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const activeCallCounterpart =
     activeCall && session
       ? activeCall.initiator.id === session.user.id
@@ -38,48 +52,99 @@ export default function HomeScreen() {
     queryKey: ["me"],
   });
 
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: async () => {
-      await clearSession();
-    },
-  });
+  const displayName =
+    meQuery.data?.display_name ||
+    session?.user.display_name ||
+    session?.user.phone_number_normalized ||
+    "Unknown";
+  const phoneNumber =
+    meQuery.data?.phone_number_normalized ||
+    session?.user.phone_number_normalized ||
+    "";
 
   return (
     <AppScrollScreen contentContainerStyle={styles.content}>
+      <View style={styles.topBarWrap}>
+        <View style={styles.topBar}>
+          <View style={styles.topBarCopy}>
+            <Text style={styles.topBarTitle}>Messages</Text>
+            <Text style={styles.topBarSubtitle}>Your communication hub</Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Open account menu"
+            accessibilityRole="button"
+            onPress={() => {
+              setIsAccountMenuOpen((value) => !value);
+            }}
+            style={styles.avatarButton}
+          >
+            <Text style={styles.avatarLabel}>
+              {getInitials(displayName, phoneNumber)}
+            </Text>
+          </Pressable>
+        </View>
+
+        {isAccountMenuOpen ? (
+          <View style={styles.accountMenu}>
+            <View style={styles.accountMenuHeader}>
+              <Text style={styles.accountMenuTitle}>
+                {getDisplayIdentity(displayName, phoneNumber)}
+              </Text>
+              <Text style={styles.accountMenuSubtitle}>{phoneNumber}</Text>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                setIsAccountMenuOpen(false);
+                router.push("/(app)/profile");
+              }}
+              style={styles.accountMenuItem}
+            >
+              <Text style={styles.accountMenuItemLabel}>Profile</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                setIsAccountMenuOpen(false);
+                router.push("/(app)/settings");
+              }}
+              style={styles.accountMenuItem}
+            >
+              <Text style={styles.accountMenuItemLabel}>Settings</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
+
       <View style={styles.heroCard}>
         <View style={styles.heroRow}>
           <View style={styles.heroIcon}>
-            <PhoneCall
+            <BadgePlus
               color={appColors.actionDarkText}
               size={24}
               strokeWidth={2.2}
             />
           </View>
           <View style={styles.heroCopy}>
-            <Text style={styles.label}>Messages</Text>
+            <Text style={styles.label}>Conversation list</Text>
             <Text style={styles.title}>
-              Communication shell, message list next
+              Your message inbox is ready for wiring
             </Text>
           </View>
         </View>
         <Text style={styles.body}>
-          Signed in as{" "}
-          {meQuery.data?.display_name ||
-            session?.user.display_name ||
-            session?.user.phone_number_normalized}
-          . The visible shell now reserves the primary tab for messages while
-          auth, calling, contacts, profile, and settings remain usable during
-          the messaging build-out.
+          Signed in as {displayName}. The Messages tab now matches the approved
+          shell structure and keeps account routes behind the avatar menu while
+          messaging backend work is still ahead.
         </Text>
       </View>
 
       <View style={styles.callout}>
         <ShieldCheck color={appColors.cyanSoft} size={18} strokeWidth={2.2} />
         <Text style={styles.calloutText}>
-          Startup restore, silent refresh, calling, contacts, and secondary
-          account routes are active. Conversation history is not implemented
-          yet.
+          Startup restore, silent refresh, call routing, contacts, and account
+          routes are active. Conversation data and delivery are the next
+          messaging milestones.
         </Text>
       </View>
 
@@ -145,48 +210,6 @@ export default function HomeScreen() {
             />
           </Pressable>
         </Link>
-
-        <Link href="./profile" asChild>
-          <Pressable style={styles.navCard}>
-            <UserRound
-              color={appColors.primarySoft}
-              size={20}
-              strokeWidth={2.2}
-            />
-            <View style={styles.navCopy}>
-              <Text style={styles.navTitle}>Profile</Text>
-              <Text style={styles.navBody}>
-                Review and update your account details.
-              </Text>
-            </View>
-            <ChevronRight
-              color={appColors.textSecondary}
-              size={18}
-              strokeWidth={2.2}
-            />
-          </Pressable>
-        </Link>
-
-        <Link href="./settings" asChild>
-          <Pressable style={styles.navCard}>
-            <Settings
-              color={appColors.primarySoft}
-              size={20}
-              strokeWidth={2.2}
-            />
-            <View style={styles.navCopy}>
-              <Text style={styles.navTitle}>Settings</Text>
-              <Text style={styles.navBody}>
-                Inspect environment config and sign out.
-              </Text>
-            </View>
-            <ChevronRight
-              color={appColors.textSecondary}
-              size={18}
-              strokeWidth={2.2}
-            />
-          </Pressable>
-        </Link>
       </View>
 
       {meQuery.isError ? (
@@ -194,34 +217,6 @@ export default function HomeScreen() {
           {getAPIErrorMessage(meQuery.error)}
         </Text>
       ) : null}
-
-      {logoutMutation.isError ? (
-        <Text style={styles.errorText}>
-          {getAPIErrorMessage(logoutMutation.error)}
-        </Text>
-      ) : null}
-
-      <Pressable
-        disabled={!session || logoutMutation.isPending}
-        onPress={() => {
-          if (!session) {
-            return;
-          }
-
-          logoutMutation.mutate({
-            accessToken: session.access_token,
-            deviceSessionToken: session.device_session_token,
-          });
-        }}
-        style={[
-          styles.action,
-          logoutMutation.isPending && styles.disabledAction,
-        ]}
-      >
-        <Text style={styles.actionLabel}>
-          {logoutMutation.isPending ? "Signing out..." : "Quick sign out"}
-        </Text>
-      </Pressable>
     </AppScrollScreen>
   );
 }
@@ -229,7 +224,95 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
+    paddingTop: 24,
     backgroundColor: appColors.background,
+  },
+  topBarWrap: {
+    marginBottom: 18,
+    position: "relative",
+    zIndex: 10,
+  },
+  topBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  topBarCopy: {
+    flex: 1,
+    marginRight: 16,
+  },
+  topBarTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 32,
+    fontWeight: "700",
+    lineHeight: 38,
+  },
+  topBarSubtitle: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  avatarButton: {
+    alignItems: "center",
+    backgroundColor: appColors.primary,
+    borderColor: appColors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  avatarLabel: {
+    color: appColors.primarySoft,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  accountMenu: {
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: appColors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 12,
+    marginLeft: "auto",
+    padding: 8,
+    width: 220,
+  },
+  accountMenuHeader: {
+    borderBottomColor: appColors.border,
+    borderBottomWidth: 1,
+    marginBottom: 6,
+    paddingBottom: 10,
+    paddingHorizontal: 10,
+    paddingTop: 6,
+  },
+  accountMenuTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  accountMenuSubtitle: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  accountMenuItem: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  accountMenuItemLabel: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    fontWeight: "700",
   },
   heroCard: {
     backgroundColor: appColors.surface,
