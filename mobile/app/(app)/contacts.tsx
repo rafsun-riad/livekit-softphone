@@ -14,7 +14,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { deleteContact, getContacts } from "@/src/features/contacts/api";
-import { buildMessageThreadRoute } from "@/src/features/messaging/routes";
+import { buildContactDetailRoute } from "@/src/features/contacts/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
@@ -144,7 +144,8 @@ export default function ContactsScreen() {
           key={contact.id}
           onPress={() => {
             router.push(
-              buildMessageThreadRoute({
+              buildContactDetailRoute({
+                contactId: contact.id,
                 contactUserId: contact.contact_user.id,
                 contactName: contact.contact_user.display_name,
                 contactPhone: contact.contact_user.phone_number_normalized,
@@ -188,7 +189,8 @@ export default function ContactsScreen() {
 
           <View style={styles.actionsColumn}>
             <Pressable
-              onPress={() => {
+              onPress={(event) => {
+                event.stopPropagation();
                 router.push(
                   buildPendingOutgoingCallRoute({
                     recipientUserId: contact.contact_user.id,
@@ -208,7 +210,8 @@ export default function ContactsScreen() {
               />
             </Pressable>
             <Pressable
-              onPress={() => {
+              onPress={(event) => {
+                event.stopPropagation();
                 router.push(
                   buildPendingOutgoingCallRoute({
                     recipientUserId: contact.contact_user.id,
@@ -229,7 +232,8 @@ export default function ContactsScreen() {
             </Pressable>
             <Pressable
               disabled={deleteMutation.isPending}
-              onPress={() => {
+              onPress={(event) => {
+                event.stopPropagation();
                 deleteMutation.mutate(contact.id);
               }}
               style={styles.deleteButton}

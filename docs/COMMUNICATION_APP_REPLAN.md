@@ -18,7 +18,7 @@ Relationship to existing plan:
 
 The repository already contains substantial backend and mobile calling foundations. Backend auth, device sessions, contacts, devices, call lifecycle APIs, Channels websocket signaling, Firebase Admin push delivery, and LiveKit token generation exist in code. Mobile already includes Expo Router navigation, SecureStore-backed auth persistence, authenticated API retry with refresh, websocket signaling, push registration, LiveKit audio and video call screens, CallKeep, Notifee, and background incoming-call handling.
 
-The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, and phone-contact sync are not implemented. The current visible mobile shell now exposes `Messages`, `Calls`, and `Contacts`, the primary `Messages` tab has a dedicated contact-backed home, and the first hidden thread shell route exists, but there is still no real conversation data or delivery flow.
+The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, and phone-contact sync are not implemented. The current visible mobile shell now exposes `Messages`, `Calls`, and `Contacts`, the primary `Messages` tab has a dedicated contact-backed home, the first hidden thread shell route exists, and Contacts now has a person-level detail surface, but there is still no real conversation data or delivery flow.
 
 Two lifecycle issues still need validation before safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence. The original audit found that websocket disconnects could rotate device-session tokens; that trigger has now been removed, but physical-device reproduction is still required. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
 
@@ -53,7 +53,7 @@ The first implementation phase must therefore be architecture reconciliation plu
 - Phone-contact sync does not exist.
 - Unknown-user messaging and calling do not exist.
 - Block and unblock policy is not implemented end to end.
-- The approved three-tab shell now exists, and the primary `Messages` experience is a shell-level home and thread shell rather than a real conversation list backed by message data.
+- The approved three-tab shell now exists, and the primary `Messages` plus `Contacts` experiences now include shell-level home/detail flows rather than backend-backed messaging data.
 
 ## 3. Documentation vs Code Discrepancies
 

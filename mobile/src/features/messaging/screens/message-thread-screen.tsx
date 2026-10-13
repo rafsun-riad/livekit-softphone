@@ -13,6 +13,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
+import { buildContactDetailRoute } from "@/src/features/contacts/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
@@ -83,20 +84,39 @@ export default function MessageThreadScreen() {
           />
         </Pressable>
 
-        <View style={styles.avatarWrap}>
-          <Text style={styles.avatarLabel}>
-            {getInitials(displayName, phoneNumber)}
-          </Text>
-        </View>
+        <Pressable
+          disabled={!contact}
+          onPress={() => {
+            if (!contact) {
+              return;
+            }
 
-        <View style={styles.headerCopy}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {displayName}
-          </Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>
-            {phoneNumber || "Conversation"}
-          </Text>
-        </View>
+            router.push(
+              buildContactDetailRoute({
+                contactId: contact.id,
+                contactUserId: contact.contact_user.id,
+                contactName: contact.contact_user.display_name,
+                contactPhone: contact.contact_user.phone_number_normalized,
+              }),
+            );
+          }}
+          style={styles.contactHeaderLink}
+        >
+          <View style={styles.avatarWrap}>
+            <Text style={styles.avatarLabel}>
+              {getInitials(displayName, phoneNumber)}
+            </Text>
+          </View>
+
+          <View style={styles.headerCopy}>
+            <Text numberOfLines={1} style={styles.headerTitle}>
+              {displayName}
+            </Text>
+            <Text numberOfLines={1} style={styles.headerSubtitle}>
+              {phoneNumber || "Conversation"}
+            </Text>
+          </View>
+        </Pressable>
 
         <Pressable
           accessibilityLabel="Start audio call"
@@ -206,6 +226,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 18,
   },
+  contactHeaderLink: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    marginRight: 4,
+  },
   headerButton: {
     alignItems: "center",
     borderRadius: 16,
@@ -229,7 +255,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: {
     flex: 1,
-    marginRight: 4,
+    marginLeft: 10,
   },
   headerTitle: {
     color: appColors.textPrimary,

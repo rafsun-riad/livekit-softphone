@@ -104,6 +104,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="contact"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           href: null,

@@ -80,6 +80,7 @@ Reference plan:
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
 - Mobile messaging home under `mobile/src/features/messaging/` with contact-backed conversation search, a first thread shell route, and message-surface call shortcuts
 - Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
+- Contacts now includes a person-level detail screen with message, audio-call, video-call, and remove-contact actions
 - Push registration bootstrap and device inspection in settings
 
 ### Mobile calling foundations
@@ -98,7 +99,7 @@ Reference plan:
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
 - Backend-backed messages conversation list, thread flows, and delivery state
-- Contact details with save, block, and unblock actions
+- Contact-detail save, block, and unblock actions
 
 ## Confirmed Bugs And Reliability Risks
 

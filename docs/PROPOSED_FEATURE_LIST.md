@@ -91,7 +91,8 @@ Reference documents:
 - ✅ Contacts tab as the third visible bottom tab
 - Phone-contact sync and backend number matching
 - Show matched app users from the phone address book
-- Contact detail with message, audio call, video call, save, block, and unblock actions
+- Contact detail with message, audio call, and video call actions
+- Save, block, and unblock actions
 - New-contact flow with app-user validation and optional phonebook sync behavior
 
 ### Navigation and profile access
