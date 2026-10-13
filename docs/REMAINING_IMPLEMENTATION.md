@@ -150,14 +150,18 @@ Dependencies:
 
 ### Gate 4: Backend Messaging Foundation
 
-Status: Not started
+Status: In progress
 
 Remaining tasks:
 
-- Create `backend/apps/messaging/`.
-- Add conversation, message, attachment, receipt, and key-bundle models.
 - Add REST and websocket contracts for messaging.
 - Add authorization rules for unknown users and blocked users.
+
+Implementation begun:
+
+- Added `backend/apps/messaging/` and wired it into Django settings.
+- Added foundation models for conversations, participant state, encrypted messages, attachments, receipts, identity keys, signed pre-keys, and one-time pre-keys.
+- Added admin registration, the initial migration, and a focused messaging model smoke test.
 
 Dependencies:
 

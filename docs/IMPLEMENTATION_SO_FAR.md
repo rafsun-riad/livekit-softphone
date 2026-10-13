@@ -38,7 +38,7 @@ Reference plan:
 
 ### Confirmed product gaps
 
-- No messaging backend and no real mobile conversation data or delivery implementation
+- No backend messaging endpoints or real mobile conversation data and delivery implementation
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
@@ -71,6 +71,7 @@ Reference plan:
 - `contacts` app with contact status model
 - `devices` app with device registration endpoints and Firebase push service
 - `calls` app with call lifecycle APIs, events, presence, and LiveKit join-media
+- `messaging` app skeleton with conversation, participant-state, encrypted-message, attachment, receipt, and key-bundle models
 
 ### Mobile auth and shell foundations
 
@@ -93,7 +94,7 @@ Reference plan:
 
 ## Features Not Yet Implemented
 
-- Backend messaging app
+- Backend messaging endpoints and realtime contracts
 - Mobile messaging UI and data layer
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download

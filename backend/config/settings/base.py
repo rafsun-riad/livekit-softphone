@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.contacts",
     "apps.devices",
     "apps.calls",
+    "apps.messaging",
 ]
 
 MIDDLEWARE = [

@@ -49,7 +49,7 @@ The first implementation phase must therefore be architecture reconciliation plu
 
 ### Current Product State
 
-- Messaging does not exist in backend, and mobile currently has a shell-level messaging home plus a thread shell route with no conversation or delivery layer.
+- Backend messaging now exists as a model-layer foundation, and mobile currently has a shell-level messaging home plus a thread shell route with no conversation or delivery layer.
 - Phone-contact sync does not exist.
 - Unknown-user messaging and calling do not exist.
 - Block and unblock policy is not implemented end to end.

@@ -31,7 +31,7 @@ Reference documents:
 
 ## Confirmed Gaps
 
-- No backend messaging domain
+- No backend messaging endpoints or realtime delivery contracts yet
 - No mobile messaging data layer or backend-backed thread delivery
 - No E2EE implementation
 - No encrypted media pipeline
