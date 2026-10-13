@@ -32,7 +32,7 @@ Reference documents:
 ## Confirmed Gaps
 
 - No backend messaging domain
-- No mobile messaging data layer or thread routes
+- No mobile messaging data layer or backend-backed thread delivery
 - No E2EE implementation
 - No encrypted media pipeline
 - No phone-contact sync
@@ -53,7 +53,7 @@ Reference documents:
 
 - WhatsApp-style conversation list as the primary signed-in entry
 - ✅ Top app bar with `Messages` title and avatar menu
-- Search bar for filtering conversations
+- ✅ Search bar for filtering conversations
 - New conversation floating action button
 - 1:1 text messaging
 - 1:1 image messaging
@@ -88,7 +88,7 @@ Reference documents:
 
 ### Contacts
 
-- Contacts tab as the third visible bottom tab
+- ✅ Contacts tab as the third visible bottom tab
 - Phone-contact sync and backend number matching
 - Show matched app users from the phone address book
 - Contact detail with message, audio call, video call, save, block, and unblock actions

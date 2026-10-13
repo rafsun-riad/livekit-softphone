@@ -1,7 +1,7 @@
 import { useDeferredValue, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import { ChevronRight, Search, ShieldCheck } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -9,6 +9,7 @@ import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { buildActiveCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
 import type { Contact } from "@/src/features/contacts/types";
+import { buildMessageThreadRoute } from "@/src/features/messaging/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
@@ -151,8 +152,17 @@ export default function MessagesHomeScreen() {
         const isOnline = Boolean(onlineUsers[counterpart.id]);
 
         return (
-          <View
+          <Pressable
             key={contact.id}
+            onPress={() => {
+              router.push(
+                buildMessageThreadRoute({
+                  contactUserId: counterpart.id,
+                  contactName: counterpart.display_name,
+                  contactPhone: counterpart.phone_number_normalized,
+                }),
+              );
+            }}
             style={[
               styles.conversationRow,
               index === filteredContacts.length - 1 &&
@@ -188,7 +198,7 @@ export default function MessagesHomeScreen() {
                 will appear here
               </Text>
             </View>
-          </View>
+          </Pressable>
         );
       })}
     </AppScrollScreen>

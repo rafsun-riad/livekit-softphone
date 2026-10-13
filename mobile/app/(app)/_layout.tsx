@@ -97,6 +97,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="messages"
+        options={{
+          href: null,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           href: null,

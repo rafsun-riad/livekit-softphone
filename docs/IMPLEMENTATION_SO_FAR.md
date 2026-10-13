@@ -38,7 +38,7 @@ Reference plan:
 
 ### Confirmed product gaps
 
-- No messaging backend and no real mobile conversation or thread implementation
+- No messaging backend and no real mobile conversation data or delivery implementation
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
@@ -78,7 +78,8 @@ Reference plan:
 - SecureStore-backed auth persistence via Zustand
 - Authenticated API client with refresh-on-401 behavior
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
-- Mobile messaging home under `mobile/src/features/messaging/` with contact search, a new-conversation entry point, and message-surface call shortcuts
+- Mobile messaging home under `mobile/src/features/messaging/` with contact-backed conversation search, a first thread shell route, and message-surface call shortcuts
+- Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
 - Push registration bootstrap and device inspection in settings
 
 ### Mobile calling foundations
@@ -96,7 +97,7 @@ Reference plan:
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
-- Messages conversation list and thread flows
+- Backend-backed messages conversation list, thread flows, and delivery state
 - Contact details with save, block, and unblock actions
 
 ## Confirmed Bugs And Reliability Risks
@@ -156,6 +157,8 @@ Reference plan:
 - Mobile TypeScript check: passed.
 - Android Expo export: passed.
 - Android Expo prebuild: passed.
+- Three-tab shell and list-layout updates for `Messages`, `Calls`, and `Contacts`: manually verified on a real Android device.
+- Messages thread-shell navigation and route wiring: statically validated through typecheck and export; hardware validation remains open.
 
 ## What This File Intentionally Does Not Claim
 

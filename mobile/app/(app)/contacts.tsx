@@ -14,6 +14,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { deleteContact, getContacts } from "@/src/features/contacts/api";
+import { buildMessageThreadRoute } from "@/src/features/messaging/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useCallStore } from "@/src/stores/call-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
@@ -139,8 +140,17 @@ export default function ContactsScreen() {
       ) : null}
 
       {filteredContacts.map((contact, index) => (
-        <View
+        <Pressable
           key={contact.id}
+          onPress={() => {
+            router.push(
+              buildMessageThreadRoute({
+                contactUserId: contact.contact_user.id,
+                contactName: contact.contact_user.display_name,
+                contactPhone: contact.contact_user.phone_number_normalized,
+              }),
+            );
+          }}
           style={[
             styles.contactRow,
             index === filteredContacts.length - 1 && styles.lastContactRow,
@@ -227,7 +237,7 @@ export default function ContactsScreen() {
               <Trash2 color="#fca5a5" size={16} strokeWidth={2.2} />
             </Pressable>
           </View>
-        </View>
+        </Pressable>
       ))}
     </AppScrollScreen>
   );
