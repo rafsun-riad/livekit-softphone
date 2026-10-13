@@ -38,7 +38,7 @@ Reference plan:
 
 ### Confirmed product gaps
 
-- No messaging backend or mobile feature module
+- No messaging backend and no real mobile conversation or thread implementation
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
@@ -78,6 +78,7 @@ Reference plan:
 - SecureStore-backed auth persistence via Zustand
 - Authenticated API client with refresh-on-401 behavior
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
+- Mobile messaging home under `mobile/src/features/messaging/` with contact search, a new-conversation entry point, and message-surface call shortcuts
 - Push registration bootstrap and device inspection in settings
 
 ### Mobile calling foundations

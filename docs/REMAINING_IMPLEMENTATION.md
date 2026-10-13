@@ -19,7 +19,7 @@ Reference plan:
 
 - The repository already contains working foundations for auth, device sessions, devices, websocket signaling, push delivery, and LiveKit calling.
 - The communication-product migration remains incomplete.
-- Messaging, E2EE, contact sync, unknown-user policy, block enforcement, and the approved three-tab shell are still ahead.
+- Messaging, E2EE, contact sync, unknown-user policy, and block enforcement are still ahead behind the approved shell.
 - The highest-priority work is lifecycle hardening, not messaging UI.
 
 ## Next Immediate Actions
@@ -165,13 +165,17 @@ Dependencies:
 
 ### Gate 5: Mobile Messaging Foundation
 
-Status: Not started
+Status: In progress
 
 Remaining tasks:
 
-- Create `mobile/src/features/messaging/`.
 - Add messages list, thread view, composer, and notification routing.
 - Use TanStack Query for message and conversation server state.
+
+Implementation begun:
+
+- Added `mobile/src/features/messaging/` with a signed-in Messages home screen.
+- Messages now includes contact-backed search, a new-conversation entry point, and message-surface call shortcuts while real thread data remains unimplemented.
 
 Dependencies:
 

@@ -32,7 +32,7 @@ Reference documents:
 ## Confirmed Gaps
 
 - No backend messaging domain
-- No mobile messaging feature area
+- No mobile messaging data layer or thread routes
 - No E2EE implementation
 - No encrypted media pipeline
 - No phone-contact sync
