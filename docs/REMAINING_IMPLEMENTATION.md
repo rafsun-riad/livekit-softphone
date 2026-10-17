@@ -180,7 +180,7 @@ Remaining tasks:
 Implementation begun:
 
 - Added `mobile/src/features/messaging/` with a signed-in Messages home screen.
-- Messages now includes contact-backed search, list-driven conversation rows, and message-surface call shortcuts.
+- Messages now includes backend-backed conversation listing, conversation search, and message-surface call shortcuts.
 - Added the first hidden message thread route and screen shell so saved contacts can open a conversation surface before backend delivery exists.
 - Message threads now bootstrap direct conversations and read encrypted message records through the backend REST foundation.
 - Added the first hidden contact-detail route and screen shell so saved contacts can open a person-level message/call surface before contact-policy work is complete.

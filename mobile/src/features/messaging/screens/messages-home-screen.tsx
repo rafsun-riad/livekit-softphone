@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link, router } from "expo-router";
@@ -8,8 +8,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppScrollScreen } from "@/src/components/layout/app-scroll-screen";
 import { buildActiveCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
-import type { Contact } from "@/src/features/contacts/types";
+import { listConversations } from "@/src/features/messaging/api";
 import { buildMessageThreadRoute } from "@/src/features/messaging/routes";
+import type { ConversationRecord } from "@/src/features/messaging/types";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useAuthStore } from "@/src/stores/auth-store";
 import { useCallStore } from "@/src/stores/call-store";
@@ -26,18 +27,54 @@ function getInitials(name: string | null | undefined, phone: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
-function matchesContact(contact: Contact, query: string) {
-  if (!query) {
-    return true;
+function formatConversationPreview(conversation: ConversationRecord) {
+  if (!conversation.latest_message) {
+    return "Conversation ready";
   }
 
-  return [
-    contact.contact_user.display_name,
-    contact.contact_user.phone_number_normalized,
-  ]
-    .join(" ")
-    .toLowerCase()
-    .includes(query);
+  switch (conversation.latest_message.message_type) {
+    case "text":
+      return "Encrypted text message";
+    case "image":
+      return "Encrypted image";
+    case "video":
+      return "Encrypted video";
+    case "voice":
+      return "Encrypted voice message";
+    default:
+      return "System message";
+  }
+}
+
+function formatConversationTimestamp(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+  });
+}
+
+function getConversationCounterpart(
+  conversation: ConversationRecord,
+  currentUserId: string,
+) {
+  return (
+    conversation.participants.find(
+      (participant) => participant.user.id !== currentUserId,
+    )?.user ??
+    conversation.participants[0]?.user ??
+    null
+  );
 }
 
 export default function MessagesHomeScreen() {
@@ -54,14 +91,39 @@ export default function MessagesHomeScreen() {
         : activeCall.initiator
       : null;
 
+  const conversationsQuery = useQuery({
+    enabled: Boolean(session),
+    queryFn: ({ signal }) => listConversations({ signal }),
+    queryKey: ["messaging", "conversations"],
+  });
+
   const contactsQuery = useQuery({
     queryFn: ({ signal }) => getContacts({ signal }),
     queryKey: ["contacts"],
   });
 
-  const filteredContacts = (contactsQuery.data ?? []).filter((contact) =>
-    matchesContact(contact, deferredQuery),
-  );
+  const filteredConversations = useMemo(() => {
+    const currentUserId = session?.user.id;
+    if (!currentUserId) {
+      return [];
+    }
+
+    return (conversationsQuery.data ?? []).filter((conversation) => {
+      const counterpart = getConversationCounterpart(
+        conversation,
+        currentUserId,
+      );
+      const haystack = [
+        counterpart?.display_name,
+        counterpart?.phone_number_normalized,
+        formatConversationPreview(conversation),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return !deferredQuery || haystack.includes(deferredQuery);
+    });
+  }, [conversationsQuery.data, deferredQuery, session?.user.id]);
 
   return (
     <AppScrollScreen contentContainerStyle={styles.content}>
@@ -98,17 +160,18 @@ export default function MessagesHomeScreen() {
         </Link>
       ) : null}
 
-      {contactsQuery.isError ? (
+      {conversationsQuery.isError ? (
         <Text style={styles.errorText}>
-          {getAPIErrorMessage(contactsQuery.error)}
+          {getAPIErrorMessage(conversationsQuery.error)}
         </Text>
       ) : null}
 
-      {contactsQuery.isLoading ? (
+      {conversationsQuery.isLoading ? (
         <Text style={styles.helperText}>Loading conversations...</Text>
       ) : null}
 
-      {!contactsQuery.isLoading && !contactsQuery.data?.length ? (
+      {!conversationsQuery.isLoading &&
+      !(conversationsQuery.data?.length ?? 0) ? (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>
             <ShieldCheck
@@ -119,42 +182,60 @@ export default function MessagesHomeScreen() {
           </View>
           <Text style={styles.emptyTitle}>No conversations yet</Text>
           <Text style={styles.emptyBody}>
-            Add a contact first. Your first conversation list will appear here.
+            {contactsQuery.data?.length
+              ? "Open a saved contact to bootstrap your first direct conversation."
+              : "Add a contact first. Your first conversation list will appear here."}
           </Text>
-          <Link href="./search" asChild>
+          <Link
+            href={contactsQuery.data?.length ? "./contacts" : "./search"}
+            asChild
+          >
             <Pressable style={styles.primaryAction}>
-              <Text style={styles.primaryActionLabel}>Find a contact</Text>
+              <Text style={styles.primaryActionLabel}>
+                {contactsQuery.data?.length
+                  ? "Open contacts"
+                  : "Find a contact"}
+              </Text>
             </Pressable>
           </Link>
         </View>
       ) : null}
 
-      {!contactsQuery.isLoading && Boolean(contactsQuery.data?.length) ? (
+      {!conversationsQuery.isLoading &&
+      Boolean(conversationsQuery.data?.length) ? (
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Conversations</Text>
-          <Text style={styles.sectionMeta}>{filteredContacts.length}</Text>
+          <Text style={styles.sectionMeta}>{filteredConversations.length}</Text>
         </View>
       ) : null}
 
-      {!contactsQuery.isLoading &&
-      Boolean(contactsQuery.data?.length) &&
-      !filteredContacts.length ? (
+      {!conversationsQuery.isLoading &&
+      Boolean(conversationsQuery.data?.length) &&
+      !filteredConversations.length ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>No matching conversations</Text>
           <Text style={styles.emptyBody}>
-            Try a different name or number from your saved contacts.
+            Try a different name or number from your existing conversations.
           </Text>
         </View>
       ) : null}
 
-      {filteredContacts.map((contact, index) => {
-        const counterpart = contact.contact_user;
-        const isOnline = Boolean(onlineUsers[counterpart.id]);
+      {filteredConversations.map((conversation, index) => {
+        const counterpart = session
+          ? getConversationCounterpart(conversation, session.user.id)
+          : null;
+        const isOnline = Boolean(
+          counterpart?.id && onlineUsers[counterpart.id],
+        );
 
         return (
           <Pressable
-            key={contact.id}
+            key={conversation.id}
             onPress={() => {
+              if (!counterpart) {
+                return;
+              }
+
               router.push(
                 buildMessageThreadRoute({
                   contactUserId: counterpart.id,
@@ -165,15 +246,15 @@ export default function MessagesHomeScreen() {
             }}
             style={[
               styles.conversationRow,
-              index === filteredContacts.length - 1 &&
+              index === filteredConversations.length - 1 &&
                 styles.lastConversationRow,
             ]}
           >
             <View style={styles.avatarWrap}>
               <Text style={styles.avatarLabel}>
                 {getInitials(
-                  counterpart.display_name,
-                  counterpart.phone_number_normalized,
+                  counterpart?.display_name,
+                  counterpart?.phone_number_normalized ?? "",
                 )}
               </Text>
             </View>
@@ -181,8 +262,9 @@ export default function MessagesHomeScreen() {
             <View style={styles.rowCopy}>
               <View style={styles.rowTop}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
-                  {counterpart.display_name ||
-                    counterpart.phone_number_normalized}
+                  {counterpart?.display_name ||
+                    counterpart?.phone_number_normalized ||
+                    "Conversation"}
                 </Text>
                 <Text
                   style={[
@@ -190,12 +272,15 @@ export default function MessagesHomeScreen() {
                     isOnline && styles.rowTrailingOnline,
                   ]}
                 >
-                  {isOnline ? "online" : "saved"}
+                  {formatConversationTimestamp(
+                    conversation.latest_message_at ||
+                      conversation.latest_message?.created_at ||
+                      conversation.updated_at,
+                  ) || (isOnline ? "online" : "ready")}
                 </Text>
               </View>
               <Text style={styles.rowSubtitle} numberOfLines={1}>
-                {counterpart.phone_number_normalized} · conversation history
-                will appear here
+                {formatConversationPreview(conversation)}
               </Text>
             </View>
           </Pressable>
@@ -379,7 +464,6 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 12,
     fontWeight: "600",
-    textTransform: "capitalize",
   },
   rowTrailingOnline: {
     color: "#86efac",

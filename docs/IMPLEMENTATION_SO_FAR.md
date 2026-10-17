@@ -79,7 +79,7 @@ Reference plan:
 - SecureStore-backed auth persistence via Zustand
 - Authenticated API client with refresh-on-401 behavior
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
-- Mobile messaging home under `mobile/src/features/messaging/` with contact-backed conversation search, a first thread shell route, and message-surface call shortcuts
+- Mobile messaging home under `mobile/src/features/messaging/` with backend-backed conversation listing, conversation search, a first thread shell route, and message-surface call shortcuts
 - Message thread shells now bootstrap direct conversations and read encrypted message records from the backend REST layer
 - Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
 - Contacts now includes a person-level detail screen with message, audio-call, video-call, and remove-contact actions
@@ -100,7 +100,7 @@ Reference plan:
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
-- Backend-backed messages conversation list, full thread UX, send flow, and delivery state
+- Message send flow, richer thread UX, and delivery state
 - Contact-detail save, block, and unblock actions
 
 ## Confirmed Bugs And Reliability Risks
