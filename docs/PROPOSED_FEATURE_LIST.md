@@ -32,7 +32,7 @@ Reference documents:
 ## Confirmed Gaps
 
 - No backend messaging realtime delivery contracts or completed authorization rules yet
-- No message send flow or delivery lifecycle yet
+- No message delivery lifecycle, notification routing, or realtime messaging yet
 - No E2EE implementation
 - No encrypted media pipeline
 - No phone-contact sync

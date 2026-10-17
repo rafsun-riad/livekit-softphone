@@ -80,7 +80,7 @@ Reference plan:
 - Authenticated API client with refresh-on-401 behavior
 - Approved `Messages`, `Calls`, `Contacts` shell with avatar-menu access to profile and settings
 - Mobile messaging home under `mobile/src/features/messaging/` with backend-backed conversation listing, conversation search, a first thread shell route, and message-surface call shortcuts
-- Message thread shells now bootstrap direct conversations and read encrypted message records from the backend REST layer
+- Message thread shells now bootstrap direct conversations, render encrypted message records from the backend REST layer, and send the first text-message payloads through the new message-create contract
 - Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
 - Contacts now includes a person-level detail screen with message, audio-call, video-call, and remove-contact actions
 - Push registration bootstrap and device inspection in settings
@@ -100,7 +100,7 @@ Reference plan:
 - E2EE key lifecycle and encrypted payload handling
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
-- Message send flow, richer thread UX, and delivery state
+- Richer thread UX and delivery state
 - Contact-detail save, block, and unblock actions
 
 ## Confirmed Bugs And Reliability Risks

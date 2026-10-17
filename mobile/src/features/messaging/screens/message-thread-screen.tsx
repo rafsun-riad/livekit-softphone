@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
@@ -9,16 +9,25 @@ import {
   Send,
   Video,
 } from "lucide-react-native";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
 import { getContacts } from "@/src/features/contacts/api";
 import { buildContactDetailRoute } from "@/src/features/contacts/routes";
 import {
+  createMessage,
   ensureDirectConversation,
   getConversationMessages,
 } from "@/src/features/messaging/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
+import { useAuthStore } from "@/src/stores/auth-store";
 import { appColors, appTypography } from "@/src/theme/app-theme";
 
 function getInitials(name: string | null | undefined, phone: string) {
@@ -32,7 +41,36 @@ function getInitials(name: string | null | undefined, phone: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
+function getMessagePreview(message: {
+  message_type: string;
+  ciphertext: Record<string, unknown>;
+}) {
+  const body = message.ciphertext.body;
+  if (typeof body === "string" && body.trim().length > 0) {
+    return body;
+  }
+
+  switch (message.message_type) {
+    case "image":
+      return "Encrypted image";
+    case "video":
+      return "Encrypted video";
+    case "voice":
+      return "Encrypted voice message";
+    case "system":
+      return "System message";
+    default:
+      return "Encrypted message";
+  }
+}
+
+function buildClientMessageId() {
+  return `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function MessageThreadScreen() {
+  const queryClient = useQueryClient();
+  const session = useAuthStore((state) => state.session);
   const params = useLocalSearchParams<{
     contactUserId?: string | string[];
     contactName?: string | string[];
@@ -86,6 +124,44 @@ export default function MessageThreadScreen() {
     "Unknown user";
   const phoneNumber =
     contact?.contact_user.phone_number_normalized || fallbackPhone || "";
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (body: string) => {
+      if (!conversationQuery.data?.id) {
+        throw new Error("Conversation is not ready yet.");
+      }
+
+      return createMessage({
+        conversationId: conversationQuery.data.id,
+        messageType: "text",
+        ciphertext: {
+          body,
+        },
+        clientMessageId: buildClientMessageId(),
+      });
+    },
+    onSuccess: async () => {
+      setDraft("");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [
+            "messaging",
+            "messages",
+            { conversationId: conversationQuery.data?.id ?? "" },
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["messaging", "conversations"],
+        }),
+      ]);
+    },
+  });
+
+  const canSend = Boolean(
+    draft.trim().length &&
+    conversationQuery.data?.id &&
+    !sendMessageMutation.isPending,
+  );
 
   return (
     <View style={styles.screen}>
@@ -188,7 +264,10 @@ export default function MessageThreadScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+      >
         {contactsQuery.isError ? (
           <Text style={styles.errorText}>
             {getAPIErrorMessage(contactsQuery.error)}
@@ -207,49 +286,100 @@ export default function MessageThreadScreen() {
           </Text>
         ) : null}
 
+        {sendMessageMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(sendMessageMutation.error)}
+          </Text>
+        ) : null}
+
         {conversationQuery.isLoading || messagesQuery.isLoading ? (
           <Text style={styles.helperText}>Loading conversation...</Text>
         ) : null}
 
-        <View style={styles.placeholderCard}>
-          <View style={styles.placeholderIconWrap}>
-            <MessageSquare
-              color={appColors.actionDarkText}
-              size={22}
-              strokeWidth={2.2}
-            />
-          </View>
-          <Text style={styles.placeholderTitle}>
-            {messagesQuery.data?.length ? "Thread loaded" : "Thread ready"}
-          </Text>
-          <Text style={styles.placeholderBody}>
-            {messagesQuery.data?.length
-              ? `This direct conversation is now backed by the messaging API. ${messagesQuery.data.length} encrypted message record${messagesQuery.data.length === 1 ? " is" : "s are"} available in the thread.`
-              : "This conversation surface now bootstraps a direct conversation and can read stored encrypted message records. Composer send behavior still depends on the next messaging step."}
-          </Text>
-          {conversationQuery.data ? (
-            <Text style={styles.placeholderMeta}>
-              Conversation ID: {conversationQuery.data.id}
+        {!messagesQuery.isLoading && !(messagesQuery.data?.length ?? 0) ? (
+          <View style={styles.placeholderCard}>
+            <View style={styles.placeholderIconWrap}>
+              <MessageSquare
+                color={appColors.actionDarkText}
+                size={22}
+                strokeWidth={2.2}
+              />
+            </View>
+            <Text style={styles.placeholderTitle}>Thread ready</Text>
+            <Text style={styles.placeholderBody}>
+              This direct conversation is now backed by the messaging API. Send
+              the first encrypted message to populate the timeline.
             </Text>
-          ) : null}
-        </View>
-      </View>
+            {conversationQuery.data ? (
+              <Text style={styles.placeholderMeta}>
+                Conversation ID: {conversationQuery.data.id}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {messagesQuery.data?.map((message) => {
+          const isMine = Boolean(
+            session?.user.id && message.sender?.id === session.user.id,
+          );
+
+          return (
+            <View
+              key={message.id}
+              style={[
+                styles.messageRow,
+                isMine ? styles.messageRowOutgoing : styles.messageRowIncoming,
+              ]}
+            >
+              <View
+                style={[
+                  styles.messageBubble,
+                  isMine
+                    ? styles.messageBubbleOutgoing
+                    : styles.messageBubbleIncoming,
+                ]}
+              >
+                <Text style={styles.messageBody}>
+                  {getMessagePreview(message)}
+                </Text>
+                <Text style={styles.messageMeta}>
+                  {new Date(message.created_at).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
 
       <View style={styles.composerWrap}>
         <View style={styles.composerField}>
           <TextInput
             autoCorrect
-            editable={false}
+            editable={!sendMessageMutation.isPending}
             onChangeText={setDraft}
-            placeholder="Message sending will unlock after backend messaging lands"
+            placeholder="Write a message"
             placeholderTextColor={appColors.textSecondary}
             style={styles.composerInput}
             value={draft}
           />
         </View>
-        <View style={styles.sendButton}>
+        <Pressable
+          disabled={!canSend}
+          onPress={() => {
+            const body = draft.trim();
+            if (!body) {
+              return;
+            }
+
+            sendMessageMutation.mutate(body);
+          }}
+          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+        >
           <Send color={appColors.primarySoft} size={18} strokeWidth={2.2} />
-        </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -314,8 +444,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   body: {
-    flex: 1,
-    justifyContent: "center",
     paddingHorizontal: 18,
     paddingVertical: 20,
   },
@@ -356,6 +484,41 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 12,
     textAlign: "center",
+  },
+  messageRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  messageRowIncoming: {
+    justifyContent: "flex-start",
+  },
+  messageRowOutgoing: {
+    justifyContent: "flex-end",
+  },
+  messageBubble: {
+    borderRadius: 18,
+    maxWidth: "82%",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  messageBubbleIncoming: {
+    backgroundColor: appColors.surface,
+  },
+  messageBubbleOutgoing: {
+    backgroundColor: appColors.primary,
+  },
+  messageBody: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  messageMeta: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: "right",
   },
   errorText: {
     color: "#fca5a5",
@@ -403,5 +566,8 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     width: 40,
+  },
+  sendButtonDisabled: {
+    opacity: 0.45,
   },
 });

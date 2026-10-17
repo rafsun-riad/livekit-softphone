@@ -174,7 +174,7 @@ Status: In progress
 
 Remaining tasks:
 
-- Add backend-backed messages list, thread view, composer send behavior, and notification routing.
+- Add richer backend-backed thread UX and notification routing.
 - Use TanStack Query for message and conversation server state.
 
 Implementation begun:
@@ -182,7 +182,7 @@ Implementation begun:
 - Added `mobile/src/features/messaging/` with a signed-in Messages home screen.
 - Messages now includes backend-backed conversation listing, conversation search, and message-surface call shortcuts.
 - Added the first hidden message thread route and screen shell so saved contacts can open a conversation surface before backend delivery exists.
-- Message threads now bootstrap direct conversations and read encrypted message records through the backend REST foundation.
+- Message threads now bootstrap direct conversations, read encrypted message records, and post the first text-message payloads through the backend REST foundation.
 - Added the first hidden contact-detail route and screen shell so saved contacts can open a person-level message/call surface before contact-policy work is complete.
 - Latest shell and list-layout updates for `Messages`, `Calls`, and `Contacts` were manually verified on a real Android device.
 
