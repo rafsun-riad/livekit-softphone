@@ -29,6 +29,7 @@ Reference plan:
 3. Reproduce the reopen-logs-out behavior on physical Android hardware with instrumentation.
 4. Reproduce the screen-timeout behavior on physical Android hardware and determine whether it is tied to active call state or broader app state.
 5. Validate current incoming-call behavior across foreground, background, swipe-away, and terminated states before changing push logic.
+6. Start the Gate 3 E2EE spike using `react-native-quick-crypto` and prove ciphertext-only device-to-device delivery.
 
 ## Execution Gates
 
@@ -135,18 +136,33 @@ Dependencies:
 
 ### Gate 3: E2EE Feasibility
 
-Status: Not started
+Status: Planned (library selected)
 
 Remaining tasks:
 
-- Choose an audited protocol or library.
+- Wire `react-native-quick-crypto` in mobile (`expo` plugin, metro aliasing, entrypoint install/polyfill, prebuild validation).
+- Implement mobile installation-scoped key bootstrap and secure key persistence lifecycle.
 - Define device-key lifecycle and multi-device behavior.
-- Prove encrypted device-to-device delivery on real code.
+- Implement backend key-bundle APIs for `UserIdentityKey`, `SignedPreKey`, and `OneTimePreKey` publish/fetch/claim operations.
+- Define and validate a versioned encrypted message-envelope contract (ciphertext, iv, aad, sender/recipient key references).
+- Implement encrypt-before-send and decrypt-after-fetch paths in mobile messaging.
+- Add integrity-failure and key-rotation recovery behavior for decryption errors.
+- Prove encrypted device-to-device delivery on real code where backend stores ciphertext only.
 - Define safe push payload policy for encrypted messages.
 
 Dependencies:
 
 - Gate 1 and Gate 2 findings incorporated.
+
+Execution checklist for Gate 3:
+
+1. Mobile runtime setup and Android build validation for `react-native-quick-crypto`.
+2. Backend key-bundle endpoints and claim semantics.
+3. Mobile key bootstrap and key-registration flow.
+4. Outbound encryption envelope generation.
+5. Inbound decryption and message integrity handling.
+6. Ciphertext-only persistence proof and regression tests.
+7. E2EE-safe push payload enforcement.
 
 ### Gate 4: Backend Messaging Foundation
 
@@ -265,7 +281,7 @@ Dependencies:
 - Root cause of the logout-on-reopen bug is not yet proven.
 - Root cause of the screen-timeout bug is not yet proven.
 - Android lifecycle support boundaries are not fully documented or hardware-validated.
-- E2EE design is not yet selected.
+- `react-native-quick-crypto` runtime integration is not yet wired or validated in Android builds.
 
 ## Risks To Re-check During Execution
 
@@ -279,7 +295,7 @@ Dependencies:
 
 - Device identity model and how to link `DeviceSession` to `Device`
 - Whether session rotation policy remains enabled exactly as-is
-- Final E2EE protocol and library selection
+- E2EE key-rotation cadence, prekey replenishment thresholds, and reinstall key-recovery policy
 - Phone-contact sync privacy model
 - Timing of the larger NativeWind migration once the new shell exists
 

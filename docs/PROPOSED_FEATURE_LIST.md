@@ -33,7 +33,7 @@ Reference documents:
 
 - No backend messaging realtime delivery contracts or completed authorization rules yet
 - No message delivery lifecycle, notification routing, or realtime messaging yet
-- No E2EE implementation
+- No E2EE implementation yet; `react-native-quick-crypto` runtime wiring, key bootstrap, and encrypted envelope flows are still pending
 - No encrypted media pipeline
 - No phone-contact sync
 - No end-to-end block and unblock policy across calls, push, and media authorization
@@ -59,7 +59,7 @@ Reference documents:
 - 1:1 image messaging
 - 1:1 video messaging
 - 1:1 voice messaging
-- End-to-end encryption for all message types in first release
+- End-to-end encryption for all message types in first release using `react-native-quick-crypto` (`X25519` + `HKDF-SHA256` + `AES-256-GCM`)
 - Delivery and read status indicators
 - ✅ Unknown-sender save or block prompt in thread view
 - Push notifications for incoming messages with E2EE-safe previews

@@ -316,7 +316,30 @@ Messaging must not be implemented as a plaintext server-side message relay and t
 - Logout and device revocation behavior
 - Encrypted media strategy
 - Safe push payload strategy
-- Protocol and library selection
+- E2EE protocol details and rotation policy after library selection
+
+### Selected E2EE library baseline
+
+- E2EE mobile crypto runtime is fixed to `react-native-quick-crypto`.
+- First-pass primitives are `X25519` for key agreement, `HKDF-SHA256` for key derivation, and `AES-256-GCM` for message payload encryption.
+- The server must remain ciphertext-only for message bodies and attachment payload keys.
+
+### Quick Crypto implementation constraints
+
+- This stack requires a custom development client and does not run in Expo Go.
+- Mobile setup must include the Expo plugin for `react-native-quick-crypto`, metro resolver aliasing for `crypto`, and global install/polyfill wiring at app entry.
+- Native regeneration and validation are mandatory after setup changes (`expo prebuild` and platform builds).
+
+### Missing implementation checklist
+
+- Wire `react-native-quick-crypto` into the mobile runtime and verify production parity in Android builds.
+- Add backend key-bundle APIs for identity keys, signed prekeys, one-time prekeys, and prekey claim semantics.
+- Add per-installation key bootstrap and rotation flows on mobile login and reinstall paths.
+- Define and enforce a message-envelope schema version for ciphertext, iv, aad, sender key references, and recipient device references.
+- Implement encrypt-before-send and decrypt-after-fetch paths in the mobile messaging feature.
+- Add tamper handling and stale-session recovery behavior for decryption failures.
+- Add E2EE-safe push payload rules so notifications never include plaintext message bodies.
+- Extend attachment contracts to encrypt attachment keys and metadata consistently with message policy.
 
 ### Gate requirement
 
@@ -500,7 +523,12 @@ Recommended order:
 
 ### Gate 3: E2EE Feasibility
 
-- Prove encrypted device-to-device delivery.
+- Integrate `react-native-quick-crypto` and validate crypto runtime behavior on Android dev and release builds.
+- Implement identity bundle publish/fetch/claim APIs for `UserIdentityKey`, `SignedPreKey`, and `OneTimePreKey`.
+- Implement installation-scoped key bootstrap and secure private-key persistence strategy.
+- Implement a versioned E2EE envelope contract and strict server-side validation for required ciphertext metadata.
+- Prove encrypted device-to-device delivery where the backend stores ciphertext only and a recipient device decrypts successfully.
+- Add backend tests for bundle lifecycle, claim semantics, envelope validation, and blocked-user authorization interactions.
 
 ### Gate 4: Backend Messaging Foundation
 
@@ -539,6 +567,14 @@ Recommended order:
 - Use TanStack Query for message and conversation server state.
 - Convert the visible shell to `Messages`, `Calls`, and `Contacts`.
 
+### Gate 3 work (E2EE with react-native-quick-crypto)
+
+- Install and configure `react-native-quick-crypto` with Expo plugin, metro aliasing, and entrypoint install/polyfill wiring.
+- Add mobile key bootstrap to create and register installation identity keys and prekeys.
+- Build outbound encryption flow (bundle fetch -> shared secret -> derived key -> ciphertext envelope).
+- Build inbound decryption flow with integrity verification and failure-state UX.
+- Add device-key lifecycle handling for reinstall, logout, and revoked session recovery.
+
 ## 21. Native Android Implementation Phases
 
 - Validate generated Android config after auth and push changes.
@@ -557,12 +593,14 @@ Recommended order:
 - Unknown-user and block authorization
 - Messaging and encrypted envelope validation
 - Push payload generation
+- Key-bundle publish, fetch, claim, and prekey depletion behavior
 
 ### Mobile static checks
 
 - `npx tsc --noEmit`
 - `npx expo export --platform android`
 - `npx expo prebuild --platform android --no-install`
+- `react-native-quick-crypto` setup verification through prebuild output and successful Android native compilation
 
 ### Native validation
 
@@ -695,10 +733,14 @@ Add a dedicated section for newly identified lifecycle and reliability requireme
 2. DeviceSession to Device linkage model
 3. Device-session rotation policy after startup hardening
 4. Incoming-call push payload strategy
-5. E2EE protocol and library choice
+5. E2EE protocol details and key-rotation windows (library fixed to `react-native-quick-crypto`)
 6. Phone-contact sync privacy model
 7. Unknown-user calling and messaging authorization details
 8. Final in-call control set for the first NativeWind redesign pass
+
+E2EE library decision already fixed:
+
+- `react-native-quick-crypto` is the approved mobile crypto runtime for E2EE messaging implementation.
 
 Initial approved first-pass control set:
 

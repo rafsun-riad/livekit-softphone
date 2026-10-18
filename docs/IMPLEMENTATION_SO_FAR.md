@@ -100,6 +100,8 @@ Reference plan:
 - Backend messaging realtime contracts and full delivery behavior
 - Mobile messaging UI and data layer
 - E2EE key lifecycle and encrypted payload handling
+- Mobile `react-native-quick-crypto` integration and runtime wiring
+- Backend key-bundle REST contracts for identity and prekey lifecycle
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
 - Richer thread UX and delivery state
@@ -187,6 +189,12 @@ Reference plan:
 
 - Backend tests: `manage.py test apps.contacts apps.messaging` passed.
 - Mobile TypeScript check: `npx tsc --noEmit` passed.
+
+### E2EE implementation planning decision
+
+- E2EE mobile runtime is now planned around `react-native-quick-crypto`.
+- Planned first-pass cryptographic baseline is `X25519` key agreement, `HKDF-SHA256` key derivation, and `AES-256-GCM` payload encryption.
+- Runtime integration, key bootstrap, encrypted envelope contracts, and decryption lifecycle are not yet implemented in code.
 
 ## What This File Intentionally Does Not Claim
 
