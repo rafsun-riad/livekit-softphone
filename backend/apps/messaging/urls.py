@@ -5,6 +5,7 @@ from .views import (
     ConversationListView,
     DirectConversationCreateView,
     MessageListCreateView,
+    MessageReadReceiptView,
 )
 
 urlpatterns = [
@@ -25,5 +26,10 @@ urlpatterns = [
         "conversations/<uuid:conversation_id>/messages/",
         MessageListCreateView.as_view(),
         name="messaging-messages",
+    ),
+    path(
+        "conversations/<uuid:conversation_id>/receipts/read/",
+        MessageReadReceiptView.as_view(),
+        name="messaging-read-receipts",
     ),
 ]

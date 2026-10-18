@@ -15,6 +15,11 @@ type CreateMessagePayload = {
   clientMessageId?: string;
 };
 
+type MarkConversationReadPayload = {
+  conversationId: string;
+  messageId?: string;
+};
+
 export function listConversations(requestOptions: RequestOptions = {}) {
   return authenticatedRequest<ConversationRecord[]>(
     "/api/messaging/conversations/",
@@ -59,6 +64,18 @@ export function createMessage(payload: CreateMessagePayload) {
         message_type: payload.messageType,
         ciphertext: payload.ciphertext,
         client_message_id: payload.clientMessageId ?? "",
+      },
+    },
+  );
+}
+
+export function markConversationRead(payload: MarkConversationReadPayload) {
+  return authenticatedRequest<{ updated_count: number }>(
+    `/api/messaging/conversations/${payload.conversationId}/receipts/read/`,
+    {
+      method: "POST",
+      body: {
+        ...(payload.messageId ? { message_id: payload.messageId } : {}),
       },
     },
   );

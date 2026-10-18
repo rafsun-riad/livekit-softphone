@@ -6,6 +6,7 @@ from .serializers import (
     ConversationSerializer,
     DirectConversationCreateSerializer,
     MessageCreateSerializer,
+    MessageReadReceiptUpdateSerializer,
     MessageSerializer,
     prefetch_conversation_queryset,
 )
@@ -154,3 +155,33 @@ class MessageListCreateView(APIView):
             )
 
         return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
+
+
+class MessageReadReceiptView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, conversation_id):
+        serializer = MessageReadReceiptUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response(
+                code="message_receipt_update_failed",
+                message="Unable to update message receipts.",
+                details=serializer.errors,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            updated_count = MessagingService.mark_messages_read(
+                conversation_id=conversation_id,
+                user=request.user,
+                message_id=serializer.validated_data.get("message_id"),
+            )
+        except MessagingServiceError as error:
+            return error_response(
+                code=error.code,
+                message=error.message,
+                details=error.details,
+                status_code=error.status_code,
+            )
+
+        return Response({"updated_count": updated_count}, status=status.HTTP_200_OK)

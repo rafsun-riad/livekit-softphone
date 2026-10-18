@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from apps.accounts.models import User
 from apps.contacts.models import Contact, ContactStatus
 from django.test import TestCase
@@ -126,7 +128,8 @@ class MessagingAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["kind"], ConversationKind.DIRECT)
 
-    def test_participants_can_create_and_list_messages(self):
+    @patch("apps.messaging.services.broadcast_user_event")
+    def test_participants_can_create_and_list_messages(self, broadcast_mock):
         conversation = Conversation.objects.create(
             kind=ConversationKind.DIRECT,
             created_by=self.sender,
@@ -141,21 +144,53 @@ class MessagingAPITests(APITestCase):
         )
 
         self.authenticate(self.sender)
-        create_message_response = self.client.post(
-            reverse("messaging-messages", args=[conversation.id]),
-            {
-                "message_type": MessageType.TEXT,
-                "ciphertext": {"body": "opaque-ciphertext"},
-                "client_message_id": "thread-message-001",
-            },
-            format="json",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            create_message_response = self.client.post(
+                reverse("messaging-messages", args=[conversation.id]),
+                {
+                    "message_type": MessageType.TEXT,
+                    "ciphertext": {"body": "opaque-ciphertext"},
+                    "client_message_id": "thread-message-001",
+                },
+                format="json",
+            )
 
         self.assertEqual(create_message_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(create_message_response.data["message_type"], MessageType.TEXT)
         self.assertEqual(
             create_message_response.data["ciphertext"]["body"],
             "opaque-ciphertext",
+        )
+
+        event_calls = [call.kwargs for call in broadcast_mock.call_args_list]
+        incoming_calls = [
+            call for call in event_calls if call["event_type"] == "message.incoming"
+        ]
+        conversation_calls = [
+            call for call in event_calls if call["event_type"] == "conversation.updated"
+        ]
+
+        self.assertEqual(len(incoming_calls), 1)
+        self.assertEqual(incoming_calls[0]["user_id"], self.recipient.id)
+        self.assertEqual(
+            incoming_calls[0]["payload"]["conversation_id"],
+            str(conversation.id),
+        )
+        self.assertEqual(
+            incoming_calls[0]["payload"]["message"]["id"],
+            create_message_response.data["id"],
+        )
+
+        self.assertEqual(len(conversation_calls), 2)
+        self.assertSetEqual(
+            {call["user_id"] for call in conversation_calls},
+            {self.sender.id, self.recipient.id},
+        )
+        self.assertTrue(
+            all(
+                call["payload"]["id"] == str(conversation.id)
+                for call in conversation_calls
+            )
         )
 
         conversation.refresh_from_db()
@@ -231,3 +266,115 @@ class MessagingAPITests(APITestCase):
         )
         self.assertEqual(create_message_response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(create_message_response.data["code"], "conversation_blocked")
+
+    @patch("apps.messaging.services.broadcast_user_event")
+    def test_participant_can_mark_messages_read_and_emit_receipt_event(
+        self,
+        broadcast_mock,
+    ):
+        conversation = Conversation.objects.create(
+            kind=ConversationKind.DIRECT,
+            created_by=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=conversation,
+            user=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=conversation,
+            user=self.recipient,
+        )
+        message = Message.objects.create(
+            conversation=conversation,
+            sender=self.sender,
+            message_type=MessageType.TEXT,
+            client_message_id="receipt-message-001",
+            ciphertext={"body": "ciphertext"},
+        )
+
+        self.authenticate(self.recipient)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("messaging-read-receipts", args=[conversation.id]),
+                {"message_id": str(message.id)},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["updated_count"], 1)
+
+        receipt = MessageReceipt.objects.filter(
+            message=message, user=self.recipient
+        ).first()
+        self.assertIsNotNone(receipt)
+        self.assertEqual(receipt.status, ReceiptStatus.READ)
+
+        participant_state = ConversationParticipantState.objects.get(
+            conversation=conversation,
+            user=self.recipient,
+        )
+        self.assertEqual(participant_state.last_read_message_id, message.id)
+        self.assertIsNotNone(participant_state.last_read_at)
+
+        receipt_event_calls = [
+            call.kwargs
+            for call in broadcast_mock.call_args_list
+            if call.kwargs["event_type"] == "message.receipt"
+        ]
+        self.assertEqual(len(receipt_event_calls), 2)
+        self.assertSetEqual(
+            {call["user_id"] for call in receipt_event_calls},
+            {self.sender.id, self.recipient.id},
+        )
+        self.assertTrue(
+            all(
+                call["payload"]["conversation_id"] == str(conversation.id)
+                and call["payload"]["message_id"] == str(message.id)
+                and call["payload"]["status"] == ReceiptStatus.READ
+                and call["payload"]["user_id"] == str(self.recipient.id)
+                for call in receipt_event_calls
+            )
+        )
+
+    def test_mark_messages_read_rejects_message_outside_conversation(self):
+        first_conversation = Conversation.objects.create(
+            kind=ConversationKind.DIRECT,
+            created_by=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=first_conversation,
+            user=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=first_conversation,
+            user=self.recipient,
+        )
+        second_conversation = Conversation.objects.create(
+            kind=ConversationKind.DIRECT,
+            created_by=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=second_conversation,
+            user=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=second_conversation,
+            user=self.recipient,
+        )
+        other_message = Message.objects.create(
+            conversation=second_conversation,
+            sender=self.sender,
+            message_type=MessageType.TEXT,
+            client_message_id="receipt-message-002",
+            ciphertext={"body": "ciphertext"},
+        )
+
+        self.authenticate(self.recipient)
+        response = self.client.post(
+            reverse("messaging-read-receipts", args=[first_conversation.id]),
+            {"message_id": str(other_message.id)},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data["code"], "message_not_found")

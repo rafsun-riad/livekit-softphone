@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
@@ -31,6 +31,7 @@ import {
   createMessage,
   ensureDirectConversation,
   getConversationMessages,
+  markConversationRead,
 } from "@/src/features/messaging/api";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useAuthStore } from "@/src/stores/auth-store";
@@ -147,6 +148,65 @@ export default function MessageThreadScreen() {
       { conversationId: conversationQuery.data?.id ?? "" },
     ],
   });
+
+  const lastReadReceiptMessageIdRef = useRef("");
+
+  const latestIncomingMessageId = useMemo(() => {
+    if (!session?.user.id || !messagesQuery.data?.length) {
+      return "";
+    }
+
+    for (let index = messagesQuery.data.length - 1; index >= 0; index -= 1) {
+      const message = messagesQuery.data[index];
+      if (message.sender?.id !== session.user.id) {
+        return message.id;
+      }
+    }
+
+    return "";
+  }, [messagesQuery.data, session?.user.id]);
+
+  const markReadReceiptMutation = useMutation({
+    mutationFn: async (messageId: string) => {
+      if (!conversationQuery.data?.id) {
+        throw new Error("Conversation is not ready yet.");
+      }
+
+      return markConversationRead({
+        conversationId: conversationQuery.data.id,
+        messageId,
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (
+      !latestIncomingMessageId ||
+      !conversationQuery.data?.id ||
+      isThreadBlocked ||
+      messagesQuery.isLoading ||
+      markReadReceiptMutation.isPending
+    ) {
+      return;
+    }
+
+    if (lastReadReceiptMessageIdRef.current === latestIncomingMessageId) {
+      return;
+    }
+
+    lastReadReceiptMessageIdRef.current = latestIncomingMessageId;
+    markReadReceiptMutation.mutate(latestIncomingMessageId, {
+      onError: () => {
+        lastReadReceiptMessageIdRef.current = "";
+      },
+    });
+  }, [
+    conversationQuery.data?.id,
+    isThreadBlocked,
+    latestIncomingMessageId,
+    markReadReceiptMutation,
+    messagesQuery.isLoading,
+  ]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (body: string) => {
@@ -360,6 +420,12 @@ export default function MessageThreadScreen() {
         {sendMessageMutation.isError ? (
           <Text style={styles.errorText}>
             {getAPIErrorMessage(sendMessageMutation.error)}
+          </Text>
+        ) : null}
+
+        {markReadReceiptMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(markReadReceiptMutation.error)}
           </Text>
         ) : null}
 

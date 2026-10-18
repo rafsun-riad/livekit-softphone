@@ -131,6 +131,10 @@ class MessageCreateSerializer(serializers.Serializer[dict[str, object]]):
     )
 
 
+class MessageReadReceiptUpdateSerializer(serializers.Serializer[dict[str, object]]):
+    message_id = serializers.UUIDField(required=False)
+
+
 def prefetch_conversation_queryset(queryset: QuerySet[Conversation]):
     participant_queryset = ConversationParticipantState.objects.select_related("user")
     message_queryset = Message.objects.select_related("sender").order_by("-created_at")
