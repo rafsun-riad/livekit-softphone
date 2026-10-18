@@ -91,3 +91,56 @@ class ContactAPITests(APITestCase):
         )
         self.assertEqual(self_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(self_response.data["code"], "contact_create_failed")
+
+    def test_save_block_unblock_and_relationship_flow(self):
+        block_response = self.client.post(
+            reverse("contacts-block"),
+            {"target_user_id": str(self.contact_user.id)},
+            format="json",
+        )
+        self.assertEqual(block_response.status_code, status.HTTP_201_CREATED)
+        blocked_contact = Contact.objects.get(
+            owner=self.owner,
+            contact_user=self.contact_user,
+        )
+        self.assertEqual(blocked_contact.status, ContactStatus.BLOCKED)
+
+        relationship_response = self.client.get(
+            reverse("contacts-relationship", args=[str(self.contact_user.id)])
+        )
+        self.assertEqual(relationship_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(relationship_response.data["status"], ContactStatus.BLOCKED)
+        self.assertTrue(relationship_response.data["is_blocked_by_you"])
+        self.assertFalse(relationship_response.data["is_saved"])
+
+        unblock_response = self.client.post(
+            reverse("contacts-unblock"),
+            {"target_user_id": str(self.contact_user.id)},
+            format="json",
+        )
+        self.assertEqual(unblock_response.status_code, status.HTTP_200_OK)
+        blocked_contact.refresh_from_db()
+        self.assertEqual(blocked_contact.status, ContactStatus.REJECTED)
+
+        save_response = self.client.post(
+            reverse("contacts-save"),
+            {"target_user_id": str(self.contact_user.id)},
+            format="json",
+        )
+        self.assertEqual(save_response.status_code, status.HTTP_200_OK)
+        blocked_contact.refresh_from_db()
+        self.assertEqual(blocked_contact.status, ContactStatus.ACCEPTED)
+
+    def test_relationship_reports_when_target_blocked_current_user(self):
+        Contact.objects.create(
+            owner=self.contact_user,
+            contact_user=self.owner,
+            status=ContactStatus.BLOCKED,
+        )
+
+        response = self.client.get(
+            reverse("contacts-relationship", args=[str(self.contact_user.id)])
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "none")
+        self.assertTrue(response.data["is_blocked_by_target"])

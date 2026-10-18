@@ -19,7 +19,7 @@ Reference plan:
 
 - The repository already contains working foundations for auth, device sessions, devices, websocket signaling, push delivery, and LiveKit calling.
 - The communication-product migration remains incomplete.
-- Messaging, E2EE, contact sync, unknown-user policy, and block enforcement are still ahead behind the approved shell.
+- Messaging, E2EE, and contact sync are still ahead behind the approved shell; unknown-user and block policy now have first-pass backend and mobile coverage.
 - The highest-priority work is lifecycle hardening, not messaging UI.
 
 ## Next Immediate Actions
@@ -155,7 +155,6 @@ Status: In progress
 Remaining tasks:
 
 - Add websocket contracts for messaging.
-- Add authorization rules for unknown users and blocked users.
 
 Implementation begun:
 
@@ -163,6 +162,7 @@ Implementation begun:
 - Added foundation models for conversations, participant state, encrypted messages, attachments, receipts, identity keys, signed pre-keys, and one-time pre-keys.
 - Added admin registration, the initial migration, and a focused messaging model smoke test.
 - Added initial REST contracts for direct-conversation bootstrap, conversation list and detail, and message list/create over ciphertext payloads.
+- Added authorization behavior so unknown users can bootstrap direct conversations unless blocked, with blocked-user enforcement for direct conversation bootstrap and message creation.
 
 Dependencies:
 
@@ -184,6 +184,8 @@ Implementation begun:
 - Added the first hidden message thread route and screen shell so saved contacts can open a conversation surface before backend delivery exists.
 - Message threads now bootstrap direct conversations, read encrypted message records, and post the first text-message payloads through the backend REST foundation.
 - Added the first hidden contact-detail route and screen shell so saved contacts can open a person-level message/call surface before contact-policy work is complete.
+- Message threads now include relationship-driven unknown-user save and block prompts, plus blocked-state handling with unblock actions.
+- Contact detail now includes first-pass block and unblock actions backed by the contacts policy endpoints.
 - Latest shell and list-layout updates for `Messages`, `Calls`, and `Contacts` were manually verified on a real Android device.
 
 Dependencies:
@@ -219,12 +221,12 @@ Dependencies:
 
 ### Gate 8: Contact Synchronization and Contact Policy
 
-Status: Not started
+Status: In progress
 
 Remaining tasks:
 
 - Add phone-contact sync and backend matching.
-- Add contact-detail actions for save, block, unblock, call, and message.
+- Extend current save, block, and unblock policy parity to unknown-caller and incoming-call surfaces.
 - Define retention and privacy policy for normalized numbers or hashes.
 
 Dependencies:
@@ -283,5 +285,5 @@ Dependencies:
 
 ## Last Updated
 
-- Date: 2026-10-04
+- Date: 2026-10-18
 - Updated by: GitHub Copilot

@@ -36,7 +36,7 @@ Reference documents:
 - No E2EE implementation
 - No encrypted media pipeline
 - No phone-contact sync
-- No end-to-end block and unblock policy
+- No end-to-end block and unblock policy across calls, push, and media authorization
 - Startup auth bootstrap is implemented; physical restart and revoked-session validation remain
 - No completed Android lifecycle reliability matrix
 
@@ -54,23 +54,23 @@ Reference documents:
 - WhatsApp-style conversation list as the primary signed-in entry
 - ✅ Top app bar with `Messages` title and avatar menu
 - ✅ Search bar for filtering conversations
-- Direct-conversation creation flow
-- 1:1 text messaging
+- ✅ Direct-conversation creation flow
+- ✅ 1:1 text messaging
 - 1:1 image messaging
 - 1:1 video messaging
 - 1:1 voice messaging
 - End-to-end encryption for all message types in first release
 - Delivery and read status indicators
-- Unknown-sender save or block prompt in thread view
+- ✅ Unknown-sender save or block prompt in thread view
 - Push notifications for incoming messages with E2EE-safe previews
-- Call action from the thread header
+- ✅ Call action from the thread header
 
 ### Calls
 
 - ✅ Calls tab as the second visible bottom tab
 - ✅ Searchable call history list
 - New call floating action button
-- Initiate new call from contacts and future conversation threads
+- ✅ Initiate new call from contacts and conversation threads
 - ✅ Reuse existing outgoing, incoming, audio, and video call flows
 - Save or block action for unknown callers
 
@@ -91,8 +91,8 @@ Reference documents:
 - ✅ Contacts tab as the third visible bottom tab
 - Phone-contact sync and backend number matching
 - Show matched app users from the phone address book
-- Contact detail with message, audio call, and video call actions
-- Save, block, and unblock actions
+- ✅ Contact detail with message, audio call, and video call actions
+- ✅ Save, block, and unblock actions
 - New-contact flow with app-user validation and optional phonebook sync behavior
 
 ### Navigation and profile access

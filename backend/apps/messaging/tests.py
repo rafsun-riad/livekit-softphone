@@ -114,7 +114,7 @@ class MessagingAPITests(APITestCase):
         self.assertEqual(second_response.status_code, status.HTTP_200_OK)
         self.assertEqual(second_response.data["id"], create_response.data["id"])
 
-    def test_direct_conversation_bootstrap_rejects_non_contact(self):
+    def test_direct_conversation_bootstrap_allows_non_contact(self):
         self.authenticate(self.sender)
 
         response = self.client.post(
@@ -123,8 +123,8 @@ class MessagingAPITests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["code"], "conversation_create_failed")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["kind"], ConversationKind.DIRECT)
 
     def test_participants_can_create_and_list_messages(self):
         conversation = Conversation.objects.create(
@@ -189,3 +189,45 @@ class MessagingAPITests(APITestCase):
         )
         self.assertEqual(outsider_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(outsider_response.data["code"], "conversation_not_found")
+
+    def test_blocked_users_cannot_bootstrap_or_send_messages(self):
+        Contact.objects.create(
+            owner=self.sender,
+            contact_user=self.outsider,
+            status=ContactStatus.BLOCKED,
+        )
+
+        self.authenticate(self.sender)
+        bootstrap_response = self.client.post(
+            reverse("messaging-conversations-direct"),
+            {"target_user_id": str(self.outsider.id)},
+            format="json",
+        )
+
+        self.assertEqual(bootstrap_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(bootstrap_response.data["code"], "conversation_blocked")
+
+        conversation = Conversation.objects.create(
+            kind=ConversationKind.DIRECT,
+            created_by=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=conversation,
+            user=self.sender,
+        )
+        ConversationParticipantState.objects.create(
+            conversation=conversation,
+            user=self.outsider,
+        )
+
+        create_message_response = self.client.post(
+            reverse("messaging-messages", args=[conversation.id]),
+            {
+                "message_type": MessageType.TEXT,
+                "ciphertext": {"body": "should fail"},
+                "client_message_id": "blocked-message-001",
+            },
+            format="json",
+        )
+        self.assertEqual(create_message_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(create_message_response.data["code"], "conversation_blocked")

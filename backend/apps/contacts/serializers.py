@@ -37,6 +37,7 @@ class ContactCreateSerializer(serializers.Serializer[dict[str, object]]):
         if Contact.objects.filter(
             owner=request.user,
             contact_user=target_user,
+            status=ContactStatus.ACCEPTED,
         ).exists():
             raise serializers.ValidationError(
                 {"target_user_id": "This user is already in your contacts."}
@@ -47,8 +48,33 @@ class ContactCreateSerializer(serializers.Serializer[dict[str, object]]):
 
     def create(self, validated_data: dict[str, object]) -> Contact:
         request = self.context["request"]
-        return Contact.objects.create(
+        contact, _ = Contact.objects.update_or_create(
             owner=request.user,
             contact_user=validated_data["target_user"],
-            status=ContactStatus.ACCEPTED,
+            defaults={"status": ContactStatus.ACCEPTED},
         )
+        return contact
+
+
+class ContactTargetUserSerializer(serializers.Serializer[dict[str, object]]):
+    target_user_id = serializers.UUIDField()
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        request = self.context["request"]
+        target_user = User.objects.filter(
+            id=attrs["target_user_id"],
+            is_active=True,
+        ).first()
+
+        if target_user is None:
+            raise serializers.ValidationError(
+                {"target_user_id": "The selected user does not exist."}
+            )
+
+        if target_user.id == request.user.id:
+            raise serializers.ValidationError(
+                {"target_user_id": "You cannot use this action on yourself."}
+            )
+
+        attrs["target_user"] = target_user
+        return attrs

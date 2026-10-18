@@ -20,7 +20,7 @@ Reference plan:
 - The repository is no longer greenfield and no longer softphone-only.
 - Backend and mobile calling foundations are implemented in code.
 - The current codebase supports custom-user auth, device sessions, device registration, websocket signaling, Firebase push, LiveKit-based calling, CallKeep, Notifee, and SecureStore-backed mobile auth persistence.
-- The communication-product transition is not complete. Messaging, E2EE, phone-contact sync, and end-to-end block policy are still not implemented behind the approved `Messages`, `Calls`, `Contacts` shell.
+- The communication-product transition is not complete. Messaging delivery lifecycle, E2EE, phone-contact sync, and cross-surface policy parity are still not implemented behind the approved `Messages`, `Calls`, `Contacts` shell.
 - A 2026-09-29 repository audit also identified lifecycle and reliability work that must happen before messaging implementation proceeds safely.
 
 ## Reconciliation Update On 2026-09-29
@@ -42,8 +42,8 @@ Reference plan:
 - No E2EE implementation
 - No encrypted media flow
 - No phone-contact sync
-- No real conversation list or thread implementation behind the approved `Messages`, `Calls`, `Contacts` shell
-- No complete unknown-user, save-contact, block, or unblock flow
+- Conversation list and first-pass thread implementation now exist behind the approved `Messages`, `Calls`, `Contacts` shell, but delivery lifecycle and notifications are still missing
+- Unknown-user, save-contact, block, and unblock flows are now implemented for backend REST contracts and primary mobile thread/detail surfaces
 
 ### Confirmed lifecycle gaps
 
@@ -83,6 +83,8 @@ Reference plan:
 - Message thread shells now bootstrap direct conversations, render encrypted message records from the backend REST layer, and send the first text-message payloads through the new message-create contract
 - Top-level `Messages`, `Calls`, and `Contacts` tabs now share the same flatter title-plus-search-plus-list shell pattern
 - Contacts now includes a person-level detail screen with message, audio-call, video-call, and remove-contact actions
+- Message threads now support unknown-user policy actions with save, block, and unblock controls backed by relationship state from the contacts API
+- Contact detail now supports first-pass block and unblock actions backed by the contacts policy endpoints
 - Push registration bootstrap and device inspection in settings
 
 ### Mobile calling foundations
@@ -101,7 +103,7 @@ Reference plan:
 - Encrypted attachment upload and download
 - Phone-contact sync and matching
 - Richer thread UX and delivery state
-- Contact-detail save, block, and unblock actions
+- Unknown-caller save or block policy parity outside current thread and contact-detail surfaces
 
 ## Confirmed Bugs And Reliability Risks
 
@@ -109,7 +111,7 @@ Reference plan:
 
 - Logout invalidates the current registration when the push token/device can be identified; registration-to-installation linkage remains incomplete.
 - Device registrations can outlive the auth session that created them.
-- Messaging remains absent behind the approved shell structure.
+- Messaging realtime and notification delivery remain incomplete behind the approved shell structure.
 
 ### Suspected but not yet proven
 
@@ -164,6 +166,28 @@ Reference plan:
 - Messages thread-shell navigation and route wiring: statically validated through typecheck and export; hardware validation remains open.
 - Backend messaging model and API tests: passed.
 
+## Implementation Update On 2026-10-18
+
+### Contact policy and unknown-user messaging work
+
+- Added backend contacts policy endpoints for save, block, unblock, and relationship lookup under `api/contacts/`.
+- Updated backend contact create behavior so non-accepted existing relations can be restored to accepted state.
+- Updated direct conversation bootstrap to allow unknown users unless either side has blocked the other.
+- Added blocked-user enforcement to direct conversation bootstrap and direct-message creation paths.
+- Added backend regression coverage for save/block/unblock/relationship flows and blocked messaging authorization behavior.
+
+### Mobile messaging and contacts policy surfaces
+
+- Added mobile contacts API bindings for save, block, unblock, and relationship status.
+- Added thread-level unknown-user prompts with save and block actions.
+- Added blocked-state handling in thread: messaging composer and call shortcuts are disabled while blocked.
+- Added contact-detail block and unblock actions using the same policy endpoints.
+
+### Validation completed
+
+- Backend tests: `manage.py test apps.contacts apps.messaging` passed.
+- Mobile TypeScript check: `npx tsc --noEmit` passed.
+
 ## What This File Intentionally Does Not Claim
 
 - It does not claim that messaging exists.
@@ -183,5 +207,5 @@ The next milestone is to finish Gate 1 and the call-screen redesign from `docs/C
 
 ## Last Updated
 
-- Date: 2026-10-04
+- Date: 2026-10-18
 - Updated by: GitHub Copilot

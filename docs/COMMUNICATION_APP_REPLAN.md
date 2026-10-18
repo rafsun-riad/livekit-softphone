@@ -18,7 +18,7 @@ Relationship to existing plan:
 
 The repository already contains substantial backend and mobile calling foundations. Backend auth, device sessions, contacts, devices, call lifecycle APIs, Channels websocket signaling, Firebase Admin push delivery, and LiveKit token generation exist in code. Mobile already includes Expo Router navigation, SecureStore-backed auth persistence, authenticated API retry with refresh, websocket signaling, push registration, LiveKit audio and video call screens, CallKeep, Notifee, and background incoming-call handling.
 
-The major missing product area is messaging. End-to-end encryption, encrypted attachments, message-safe push payloads, unknown-user policy, and phone-contact sync are not implemented. The current visible mobile shell now exposes `Messages`, `Calls`, and `Contacts`, the primary `Messages` tab now lists backend-backed conversations, the first hidden thread shell route exists, Contacts now has a person-level detail surface, and the thread screen can bootstrap, read, and post backend conversation data, but there is still no notification routing or delivery lifecycle.
+The major missing product area is messaging delivery and encryption. End-to-end encryption, encrypted attachments, message-safe push payloads, and phone-contact sync are not implemented. The current visible mobile shell now exposes `Messages`, `Calls`, and `Contacts`; the primary `Messages` tab lists backend-backed conversations; the hidden thread route can bootstrap, read, and post backend conversation data; and first-pass unknown-user policy actions now exist through save, block, and unblock flows in backend and mobile thread/detail surfaces. Notification routing and delivery lifecycle are still missing.
 
 Two lifecycle issues still need validation before safe feature expansion. First, the reported reopen-logs-out bug is not proven from repository evidence. The original audit found that websocket disconnects could rotate device-session tokens; that trigger has now been removed, but physical-device reproduction is still required. Second, the reported screen-timeout bug is not yet proven in source. No explicit keep-awake flags or keep-awake library usage were found in the mobile source tree, so the issue must be treated as an investigation item tied to native call or media behavior rather than assumed application-wide code.
 
@@ -51,15 +51,15 @@ The first implementation phase must therefore be architecture reconciliation plu
 
 - Backend messaging now exists as a model-layer and REST foundation, and mobile currently has a backend-backed conversation home plus a thread route with a basic send/read flow but no notification or delivery layer.
 - Phone-contact sync does not exist.
-- Unknown-user messaging and calling do not exist.
-- Block and unblock policy is not implemented end to end.
+- Unknown-user direct messaging bootstrap and in-thread call actions now exist for non-blocked users, but unknown-caller lifecycle policy remains incomplete.
+- Save, block, and unblock policy is now implemented for backend REST contracts and mobile thread/detail surfaces, but end-to-end enforcement across calls, push, and media authorization remains incomplete.
 - The approved three-tab shell now exists, and the primary `Messages` plus `Contacts` experiences now include shell-level home/detail flows rather than backend-backed messaging data.
 
 ## 3. Documentation vs Code Discrepancies
 
 - Earlier planning documents describe durable device sessions and silent refresh as already solved. Code mostly supports that claim, but there is no dedicated startup bootstrap flow that validates or refreshes auth before opening the private app shell.
-- Earlier planning implies the communication-product shell is largely aligned. The real mobile shell now matches the approved `Messages`, `Calls`, `Contacts` tabs, but messaging data and thread flows remain unimplemented.
-- Earlier tracking documents overstate project completeness for the new communication-app scope. Messaging, E2EE, contact sync, unknown-user policy, block enforcement, and lifecycle hardening remain unimplemented.
+- Earlier planning implies the communication-product shell is largely aligned. The real mobile shell now matches the approved `Messages`, `Calls`, `Contacts` tabs, and messaging conversation plus thread foundations are in place, but realtime delivery and notification routing remain unimplemented.
+- Earlier tracking documents overstate project completeness for the new communication-app scope. Messaging delivery lifecycle, E2EE, contact sync, broader unknown-user and block policy parity, and lifecycle hardening remain unimplemented.
 - Earlier docs do not capture the current logout and device-registration gap, the likely duplicate incoming-call notification risk, or the need to distinguish Android background, swipe-away, process death, force-stop, and reboot states explicitly.
 
 ## 4. Current Architecture

@@ -3,7 +3,7 @@ import {
   type AuthenticatedRequestOptions,
 } from "@/src/lib/api/client";
 
-import type { Contact, DirectoryUser } from "./types";
+import type { Contact, ContactRelationship, DirectoryUser } from "./types";
 
 type RequestOptions = Omit<AuthenticatedRequestOptions, "method" | "body">;
 
@@ -27,6 +27,49 @@ export function deleteContact(contactId: string) {
   return authenticatedRequest<void>(`/api/contacts/${contactId}/`, {
     method: "DELETE",
   });
+}
+
+function targetUserPayload(targetUserId: string) {
+  return {
+    target_user_id: targetUserId,
+  };
+}
+
+export function saveContact(targetUserId: string) {
+  return authenticatedRequest<Contact>("/api/contacts/save/", {
+    method: "POST",
+    body: targetUserPayload(targetUserId),
+  });
+}
+
+export function blockContact(targetUserId: string) {
+  return authenticatedRequest<Contact>("/api/contacts/block/", {
+    method: "POST",
+    body: targetUserPayload(targetUserId),
+  });
+}
+
+export function unblockContact(targetUserId: string) {
+  return authenticatedRequest<{ status: "rejected"; contact_id: string }>(
+    "/api/contacts/unblock/",
+    {
+      method: "POST",
+      body: targetUserPayload(targetUserId),
+    },
+  );
+}
+
+export function getContactRelationship(
+  targetUserId: string,
+  requestOptions: RequestOptions = {},
+) {
+  return authenticatedRequest<ContactRelationship>(
+    `/api/contacts/relationship/${targetUserId}/`,
+    {
+      ...requestOptions,
+      method: "GET",
+    },
+  );
 }
 
 export function searchUsers(

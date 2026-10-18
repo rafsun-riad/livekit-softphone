@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from apps.accounts.models import User
 from apps.accounts.serializers import UserDiscoverySerializer
-from apps.contacts.models import Contact, ContactStatus
 from django.db.models import Prefetch, QuerySet
 from rest_framework import serializers
 
@@ -116,16 +115,6 @@ class DirectConversationCreateSerializer(serializers.Serializer[dict[str, object
         if target_user.id == request.user.id:
             raise serializers.ValidationError(
                 {"target_user_id": "You cannot start a conversation with yourself."}
-            )
-
-        is_allowed = Contact.objects.filter(
-            owner=request.user,
-            contact_user=target_user,
-            status=ContactStatus.ACCEPTED,
-        ).exists()
-        if not is_allowed:
-            raise serializers.ValidationError(
-                {"target_user_id": "This user is not available in your contacts."}
             )
 
         attrs["target_user"] = target_user

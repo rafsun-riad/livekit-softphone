@@ -24,6 +24,22 @@ class MessagingServiceError(Exception):
     details: dict | None = None
 
 
+def _is_blocked_between(*, user: User, other_user: User) -> bool:
+    return Contact.objects.filter(
+        Q(owner=user, contact_user=other_user, status=ContactStatus.BLOCKED)
+        | Q(owner=other_user, contact_user=user, status=ContactStatus.BLOCKED)
+    ).exists()
+
+
+def _assert_messaging_allowed(*, user: User, other_user: User):
+    if _is_blocked_between(user=user, other_user=other_user):
+        raise MessagingServiceError(
+            code="conversation_blocked",
+            message="Messaging is blocked between these users.",
+            status_code=403,
+        )
+
+
 def get_user_conversation_queryset(*, user: User):
     return Conversation.objects.filter(participants__user=user).distinct()
 
@@ -52,6 +68,8 @@ class MessagingService:
     def get_or_create_direct_conversation(
         *, user: User, target_user: User
     ) -> tuple[Conversation, bool]:
+        _assert_messaging_allowed(user=user, other_user=target_user)
+
         existing = (
             Conversation.objects.filter(kind=ConversationKind.DIRECT)
             .annotate(
@@ -68,18 +86,6 @@ class MessagingService:
         )
         if existing is not None:
             return existing, False
-
-        is_allowed = Contact.objects.filter(
-            owner=user,
-            contact_user=target_user,
-            status=ContactStatus.ACCEPTED,
-        ).exists()
-        if not is_allowed:
-            raise MessagingServiceError(
-                code="conversation_not_allowed",
-                message="You cannot start a conversation with this user.",
-                status_code=403,
-            )
 
         conversation = Conversation.objects.create(
             kind=ConversationKind.DIRECT,
@@ -107,6 +113,15 @@ class MessagingService:
         conversation = get_conversation_for_user(
             conversation_id=conversation_id, user=user
         )
+
+        if conversation.kind == ConversationKind.DIRECT:
+            counterpart = (
+                conversation.participants.exclude(user=user)
+                .select_related("user")
+                .first()
+            )
+            if counterpart is not None:
+                _assert_messaging_allowed(user=user, other_user=counterpart.user)
 
         message = Message.objects.create(
             conversation=conversation,

@@ -12,7 +12,13 @@ import {
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
-import { deleteContact, getContacts } from "@/src/features/contacts/api";
+import {
+  blockContact,
+  deleteContact,
+  getContactRelationship,
+  getContacts,
+  unblockContact,
+} from "@/src/features/contacts/api";
 import { buildMessageThreadRoute } from "@/src/features/messaging/routes";
 import { getAPIErrorMessage } from "@/src/lib/api/client";
 import { useCallStore } from "@/src/stores/call-store";
@@ -61,6 +67,13 @@ export default function ContactDetailScreen() {
     return (contactsQuery.data ?? []).find((item) => item.id === contactId);
   }, [contactId, contactsQuery.data]);
 
+  const displayName =
+    contact?.contact_user.display_name || fallbackName || "Unknown user";
+  const phoneNumber =
+    contact?.contact_user.phone_number_normalized || fallbackPhone || "";
+  const resolvedUserId = contact?.contact_user.id || contactUserId;
+  const isOnline = Boolean(resolvedUserId && onlineUsers[resolvedUserId]);
+
   const deleteMutation = useMutation({
     mutationFn: deleteContact,
     onSuccess: async () => {
@@ -69,12 +82,38 @@ export default function ContactDetailScreen() {
     },
   });
 
-  const displayName =
-    contact?.contact_user.display_name || fallbackName || "Unknown user";
-  const phoneNumber =
-    contact?.contact_user.phone_number_normalized || fallbackPhone || "";
-  const resolvedUserId = contact?.contact_user.id || contactUserId;
-  const isOnline = Boolean(resolvedUserId && onlineUsers[resolvedUserId]);
+  const relationshipQuery = useQuery({
+    enabled: Boolean(contactUserId),
+    queryFn: ({ signal }) => getContactRelationship(contactUserId, { signal }),
+    queryKey: ["contacts", "relationship", contactUserId],
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: () => blockContact(resolvedUserId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["contacts", "relationship", contactUserId],
+        }),
+      ]);
+      router.back();
+    },
+  });
+
+  const unblockMutation = useMutation({
+    mutationFn: () => unblockContact(resolvedUserId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["contacts", "relationship", contactUserId],
+        }),
+      ]);
+    },
+  });
+
+  const isBlockedByYou = Boolean(relationshipQuery.data?.is_blocked_by_you);
 
   return (
     <View style={styles.screen}>
@@ -106,6 +145,24 @@ export default function ContactDetailScreen() {
         {deleteMutation.isError ? (
           <Text style={styles.errorText}>
             {getAPIErrorMessage(deleteMutation.error)}
+          </Text>
+        ) : null}
+
+        {relationshipQuery.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(relationshipQuery.error)}
+          </Text>
+        ) : null}
+
+        {blockMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(blockMutation.error)}
+          </Text>
+        ) : null}
+
+        {unblockMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(unblockMutation.error)}
           </Text>
         ) : null}
 
@@ -183,12 +240,45 @@ export default function ContactDetailScreen() {
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Next policy work</Text>
+          <Text style={styles.infoTitle}>Contact controls</Text>
           <Text style={styles.infoBody}>
-            Save, block, and unblock actions still depend on the unknown-user
-            policy and contact-policy backend work. This screen now provides the
-            person-level message and calling entry points the shell was missing.
+            Use block to stop calls and messages from this user. Unblocking
+            removes the block and keeps them out of your saved contacts until
+            you add them again.
           </Text>
+          {isBlockedByYou ? (
+            <Pressable
+              disabled={unblockMutation.isPending || !resolvedUserId}
+              onPress={() => {
+                if (!resolvedUserId) {
+                  return;
+                }
+
+                unblockMutation.mutate();
+              }}
+              style={styles.infoActionPrimary}
+            >
+              <Text style={styles.infoActionPrimaryLabel}>
+                {unblockMutation.isPending ? "Unblocking..." : "Unblock user"}
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              disabled={blockMutation.isPending || !resolvedUserId}
+              onPress={() => {
+                if (!resolvedUserId) {
+                  return;
+                }
+
+                blockMutation.mutate();
+              }}
+              style={styles.infoActionDanger}
+            >
+              <Text style={styles.infoActionDangerLabel}>
+                {blockMutation.isPending ? "Blocking..." : "Block user"}
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         <Pressable
@@ -330,6 +420,38 @@ const styles = StyleSheet.create({
     fontFamily: appTypography.fontFamily,
     fontSize: 14,
     lineHeight: 21,
+  },
+  infoActionPrimary: {
+    alignItems: "center",
+    backgroundColor: appColors.primary,
+    borderRadius: 14,
+    justifyContent: "center",
+    marginTop: 14,
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  infoActionPrimaryLabel: {
+    color: appColors.primarySoft,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  infoActionDanger: {
+    alignItems: "center",
+    backgroundColor: appColors.surface,
+    borderColor: "#7f1d1d",
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    marginTop: 14,
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  infoActionDangerLabel: {
+    color: "#fca5a5",
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "700",
   },
   deleteAction: {
     alignItems: "center",

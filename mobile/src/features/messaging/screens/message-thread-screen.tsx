@@ -19,7 +19,13 @@ import {
 } from "react-native";
 
 import { buildPendingOutgoingCallRoute } from "@/src/features/calls/routes";
-import { getContacts } from "@/src/features/contacts/api";
+import {
+  blockContact,
+  getContactRelationship,
+  getContacts,
+  saveContact,
+  unblockContact,
+} from "@/src/features/contacts/api";
 import { buildContactDetailRoute } from "@/src/features/contacts/routes";
 import {
   createMessage,
@@ -93,23 +99,6 @@ export default function MessageThreadScreen() {
     queryKey: ["contacts"],
   });
 
-  const conversationQuery = useQuery({
-    enabled: Boolean(contactUserId),
-    queryFn: () => ensureDirectConversation(contactUserId),
-    queryKey: ["messaging", "conversation", "direct", contactUserId],
-  });
-
-  const messagesQuery = useQuery({
-    enabled: Boolean(conversationQuery.data?.id),
-    queryFn: ({ signal }) =>
-      getConversationMessages(conversationQuery.data!.id, { signal }),
-    queryKey: [
-      "messaging",
-      "messages",
-      { conversationId: conversationQuery.data?.id ?? "" },
-    ],
-  });
-
   const contact = useMemo(() => {
     return (contactsQuery.data ?? []).find(
       (item) => item.contact_user.id === contactUserId,
@@ -124,6 +113,40 @@ export default function MessageThreadScreen() {
     "Unknown user";
   const phoneNumber =
     contact?.contact_user.phone_number_normalized || fallbackPhone || "";
+  const resolvedTargetUserId = contact?.contact_user.id || contactUserId;
+
+  const relationshipQuery = useQuery({
+    enabled: Boolean(contactUserId),
+    queryFn: ({ signal }) => getContactRelationship(contactUserId, { signal }),
+    queryKey: ["contacts", "relationship", contactUserId],
+  });
+
+  const isBlockedByYou = Boolean(relationshipQuery.data?.is_blocked_by_you);
+  const isBlockedByTarget = Boolean(
+    relationshipQuery.data?.is_blocked_by_target,
+  );
+  const isThreadBlocked = isBlockedByYou || isBlockedByTarget;
+  const isSavedContact = Boolean(relationshipQuery.data?.is_saved || contact);
+
+  const conversationQuery = useQuery({
+    enabled:
+      Boolean(contactUserId) &&
+      !relationshipQuery.isLoading &&
+      !isThreadBlocked,
+    queryFn: () => ensureDirectConversation(contactUserId),
+    queryKey: ["messaging", "conversation", "direct", contactUserId],
+  });
+
+  const messagesQuery = useQuery({
+    enabled: Boolean(conversationQuery.data?.id),
+    queryFn: ({ signal }) =>
+      getConversationMessages(conversationQuery.data!.id, { signal }),
+    queryKey: [
+      "messaging",
+      "messages",
+      { conversationId: conversationQuery.data?.id ?? "" },
+    ],
+  });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (body: string) => {
@@ -157,9 +180,49 @@ export default function MessageThreadScreen() {
     },
   });
 
+  const saveContactMutation = useMutation({
+    mutationFn: () => saveContact(resolvedTargetUserId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["contacts", "relationship", contactUserId],
+        }),
+      ]);
+    },
+  });
+
+  const blockContactMutation = useMutation({
+    mutationFn: () => blockContact(resolvedTargetUserId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["contacts", "relationship", contactUserId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["messaging", "conversation", "direct", contactUserId],
+        }),
+      ]);
+    },
+  });
+
+  const unblockContactMutation = useMutation({
+    mutationFn: () => unblockContact(resolvedTargetUserId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["contacts", "relationship", contactUserId],
+        }),
+      ]);
+    },
+  });
+
   const canSend = Boolean(
     draft.trim().length &&
     conversationQuery.data?.id &&
+    !isThreadBlocked &&
     !sendMessageMutation.isPending,
   );
 
@@ -218,17 +281,18 @@ export default function MessageThreadScreen() {
         <Pressable
           accessibilityLabel="Start audio call"
           accessibilityRole="button"
+          disabled={!resolvedTargetUserId || isThreadBlocked}
           onPress={() => {
-            if (!contact) {
+            if (!resolvedTargetUserId || isThreadBlocked) {
               return;
             }
 
             router.push(
               buildPendingOutgoingCallRoute({
-                recipientUserId: contact.contact_user.id,
+                recipientUserId: resolvedTargetUserId,
                 callType: "audio",
-                recipientName: contact.contact_user.display_name,
-                recipientPhone: contact.contact_user.phone_number_normalized,
+                recipientName: displayName,
+                recipientPhone: phoneNumber,
               }),
             );
           }}
@@ -244,17 +308,18 @@ export default function MessageThreadScreen() {
         <Pressable
           accessibilityLabel="Start video call"
           accessibilityRole="button"
+          disabled={!resolvedTargetUserId || isThreadBlocked}
           onPress={() => {
-            if (!contact) {
+            if (!resolvedTargetUserId || isThreadBlocked) {
               return;
             }
 
             router.push(
               buildPendingOutgoingCallRoute({
-                recipientUserId: contact.contact_user.id,
+                recipientUserId: resolvedTargetUserId,
                 callType: "video",
-                recipientName: contact.contact_user.display_name,
-                recipientPhone: contact.contact_user.phone_number_normalized,
+                recipientName: displayName,
+                recipientPhone: phoneNumber,
               }),
             );
           }}
@@ -271,6 +336,12 @@ export default function MessageThreadScreen() {
         {contactsQuery.isError ? (
           <Text style={styles.errorText}>
             {getAPIErrorMessage(contactsQuery.error)}
+          </Text>
+        ) : null}
+
+        {relationshipQuery.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(relationshipQuery.error)}
           </Text>
         ) : null}
 
@@ -292,11 +363,115 @@ export default function MessageThreadScreen() {
           </Text>
         ) : null}
 
-        {conversationQuery.isLoading || messagesQuery.isLoading ? (
+        {saveContactMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(saveContactMutation.error)}
+          </Text>
+        ) : null}
+
+        {blockContactMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(blockContactMutation.error)}
+          </Text>
+        ) : null}
+
+        {unblockContactMutation.isError ? (
+          <Text style={styles.errorText}>
+            {getAPIErrorMessage(unblockContactMutation.error)}
+          </Text>
+        ) : null}
+
+        {relationshipQuery.isLoading ||
+        conversationQuery.isLoading ||
+        messagesQuery.isLoading ? (
           <Text style={styles.helperText}>Loading conversation...</Text>
         ) : null}
 
-        {!messagesQuery.isLoading && !(messagesQuery.data?.length ?? 0) ? (
+        {isBlockedByTarget ? (
+          <View style={styles.policyCard}>
+            <Text style={styles.policyTitle}>Messaging unavailable</Text>
+            <Text style={styles.policyBody}>
+              This user has blocked you. Messaging and calling are unavailable
+              until they unblock you.
+            </Text>
+          </View>
+        ) : null}
+
+        {isBlockedByYou ? (
+          <View style={styles.policyCard}>
+            <Text style={styles.policyTitle}>You blocked this user</Text>
+            <Text style={styles.policyBody}>
+              Unblock to continue messaging or calling this user.
+            </Text>
+            <Pressable
+              disabled={
+                unblockContactMutation.isPending || !resolvedTargetUserId
+              }
+              onPress={() => {
+                if (!resolvedTargetUserId) {
+                  return;
+                }
+
+                unblockContactMutation.mutate();
+              }}
+              style={styles.policyPrimaryAction}
+            >
+              <Text style={styles.policyPrimaryActionLabel}>
+                {unblockContactMutation.isPending ? "Unblocking..." : "Unblock"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {!relationshipQuery.isLoading && !isThreadBlocked && !isSavedContact ? (
+          <View style={styles.policyCard}>
+            <Text style={styles.policyTitle}>Unknown user</Text>
+            <Text style={styles.policyBody}>
+              You can message this user now, then save as a contact or block
+              them.
+            </Text>
+            <View style={styles.policyActionsRow}>
+              <Pressable
+                disabled={
+                  saveContactMutation.isPending || !resolvedTargetUserId
+                }
+                onPress={() => {
+                  if (!resolvedTargetUserId) {
+                    return;
+                  }
+
+                  saveContactMutation.mutate();
+                }}
+                style={styles.policyPrimaryActionCompact}
+              >
+                <Text style={styles.policyPrimaryActionLabel}>
+                  {saveContactMutation.isPending ? "Saving..." : "Save contact"}
+                </Text>
+              </Pressable>
+              <Pressable
+                disabled={
+                  blockContactMutation.isPending || !resolvedTargetUserId
+                }
+                onPress={() => {
+                  if (!resolvedTargetUserId) {
+                    return;
+                  }
+
+                  blockContactMutation.mutate();
+                }}
+                style={styles.policyDangerAction}
+              >
+                <Text style={styles.policyDangerActionLabel}>
+                  {blockContactMutation.isPending ? "Blocking..." : "Block"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {!isThreadBlocked &&
+        !messagesQuery.isLoading &&
+        !(messagesQuery.data?.length ?? 0) ? (
           <View style={styles.placeholderCard}>
             <View style={styles.placeholderIconWrap}>
               <MessageSquare
@@ -358,9 +533,11 @@ export default function MessageThreadScreen() {
         <View style={styles.composerField}>
           <TextInput
             autoCorrect
-            editable={!sendMessageMutation.isPending}
+            editable={!sendMessageMutation.isPending && !isThreadBlocked}
             onChangeText={setDraft}
-            placeholder="Write a message"
+            placeholder={
+              isThreadBlocked ? "Messaging is unavailable" : "Write a message"
+            }
             placeholderTextColor={appColors.textSecondary}
             style={styles.composerInput}
             value={draft}
@@ -484,6 +661,72 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 12,
     textAlign: "center",
+  },
+  policyCard: {
+    backgroundColor: appColors.surface,
+    borderRadius: 18,
+    marginBottom: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  policyTitle: {
+    color: appColors.textPrimary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  policyBody: {
+    color: appColors.textSecondary,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  policyActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+  },
+  policyPrimaryAction: {
+    alignItems: "center",
+    backgroundColor: appColors.primary,
+    borderRadius: 14,
+    justifyContent: "center",
+    marginTop: 14,
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  policyPrimaryActionCompact: {
+    alignItems: "center",
+    backgroundColor: appColors.primary,
+    borderRadius: 14,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  policyPrimaryActionLabel: {
+    color: appColors.primarySoft,
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  policyDangerAction: {
+    alignItems: "center",
+    backgroundColor: appColors.surfaceStrong,
+    borderColor: "#7f1d1d",
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  policyDangerActionLabel: {
+    color: "#fca5a5",
+    fontFamily: appTypography.fontFamily,
+    fontSize: 13,
+    fontWeight: "700",
   },
   messageRow: {
     flexDirection: "row",

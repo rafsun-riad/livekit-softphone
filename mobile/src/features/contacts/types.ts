@@ -8,8 +8,17 @@ export type DirectoryUser = {
 
 export type Contact = {
   id: string;
-  status: string;
+  status: "accepted" | "pending" | "rejected" | "blocked";
   contact_user: DirectoryUser;
   created_at: string;
   updated_at: string;
+};
+
+export type ContactRelationship = {
+  target_user: DirectoryUser;
+  status: "accepted" | "pending" | "rejected" | "blocked" | "none";
+  is_saved: boolean;
+  is_blocked_by_you: boolean;
+  is_blocked_by_target: boolean;
+  contact_id: string | null;
 };
